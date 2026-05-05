@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=68,<77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ft-primitive-bench"
+version = "0.1.0"
+description = "A benchmark suite for QEC primitives beyond uniform depolarizing noise."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "The FTPrimitiveBench Authors" },
+]
+keywords = [
+    "quantum-computing",
+    "quantum-error-correction",
+    "surface-code",
+    "stim",
+    "qec",
+    "fault-tolerant",
+    "benchmark",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "stim>=1.13",
+    "numpy>=1.21",
+]
+
+[project.optional-dependencies]
+viz = [
+    "matplotlib>=3.5",
+    "plotly>=5.0",
+]
+sampling = [
+    "sinter>=1.13",
+    "pymatching>=2.1",
+]
+dev = [
+    "pytest>=7",
+    "pytest-cov",
+    "ruff",
+    "black",
+    "isort",
+    "build",
+    "twine",
+    "nbformat",
+    "jupyter",
+]
+all = [
+    "ft-primitive-bench[viz,sampling,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/ShuwenKan/FTPrimitiveBench"
+Repository = "https://github.com/ShuwenKan/FTPrimitiveBench"
+Issues = "https://github.com/ShuwenKan/FTPrimitiveBench/issues"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ft_primitive_bench*"]
+
+[tool.setuptools.package-data]
+"ft_primitive_bench.surface_code" = ["py.typed"]
+"ft_primitive_bench.noise_models" = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["ft_primitive_bench"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

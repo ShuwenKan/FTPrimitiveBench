@@ -1,0 +1,76 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+pip-wheel-metadata/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.tox/
+.nox/
+
+# Type checkers / linters
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local secrets / PyPI tokens
+.env
+.env.local
+.pypirc
+
+# Project-specific
+legacy/
+*.local.py
+*.local.ipynb
+.scratch/
+
+# Local-only PyPI release scratchpad (publish workflow, release punchlist)
+_pypi/
+
+# Local working notes / paper drafts (not packaged or distributed)
+misc/
+
+# Claude Code agent state (worktrees, settings, scheduled tasks, etc.)
+.claude/
+.remember/

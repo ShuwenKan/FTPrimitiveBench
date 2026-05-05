@@ -49,9 +49,9 @@ sampling = [
 dev = [
     "pytest>=7",
     "pytest-cov",
-    "ruff",
-    "black",
-    "isort",
+    "ruff>=0.6",
+    "black>=26",
+    "isort>=5.13",
     "build",
     "twine",
     "nbformat",

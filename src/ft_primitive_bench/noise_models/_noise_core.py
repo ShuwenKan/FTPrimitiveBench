@@ -352,7 +352,7 @@ def _normalize_pair_value(
         Mapping[str, Union[str, float, List[float]]],
         Iterable[Tuple[str, Union[float, List[float]]]],
         None,
-    ]
+    ],
 ) -> List[Tuple[str, Union[float, List[float]]]]:
     """Coerce the two-qubit noise specification into a uniform list form."""
     if value is None:

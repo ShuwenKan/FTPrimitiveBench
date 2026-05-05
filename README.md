@@ -86,32 +86,30 @@ Linux, macOS, and Windows out of the box, with no compiler toolchain required.
 
 ## Installation
 
-> **PyPI install** (`pip install ft-primitive-bench`) **will be online
-> soon.** Until then, install from source:
+PyPI install (`pip install ft-primitive-bench` or
+`uv pip install ft-primitive-bench`) coming soon. From source:
 
 ```bash
 git clone https://github.com/ShuwenKan/FTPrimitiveBench.git
 cd FTPrimitiveBench
-python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -e .
 ```
 
-Optional extras:
+Using [`uv`](https://docs.astral.sh/uv/) (recommended):
 
 ```bash
-pip install -e ".[viz]"        # matplotlib + plotly for the visualization helpers
-pip install -e ".[sampling]"   # sinter + pymatching for shot-batched sampling
-pip install -e ".[dev]"        # pytest, ruff, build, jupyter
-pip install -e ".[all]"        # everything above
+uv venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+uv pip install -e .                      # or: -e ".[viz,sampling,dev]"  /  -e ".[all]"
 ```
 
-The editable install resolves `ft_primitive_bench` from `src/`. The vendored
-logical-Y magic-measurement subcircuit (adapted from Craig Gidney's
-[Inplace Access to the Surface Code Y Basis](https://zenodo.org/records/7487893),
-CC-BY 4.0) is shipped at
-`src/ft_primitive_bench/surface_code/circuits/_y_measurement/`, so no extra
-path setup is needed.
+Using stock `pip` + `venv`:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e .                         # or: -e ".[viz,sampling,dev]"  /  -e ".[all]"
+```
+
+Extras: `[viz]` (matplotlib + plotly), `[sampling]` (sinter + pymatching),
+`[dev]` (pytest, ruff, black, isort, build, jupyter), `[all]` (everything).
 
 ## Quick start
 

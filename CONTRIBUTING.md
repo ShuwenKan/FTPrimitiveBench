@@ -5,27 +5,25 @@ development setup, the test/lint conventions, and the pull-request process.
 
 ## Development setup
 
+Requires Python ≥ 3.10. Both [`uv`](https://docs.astral.sh/uv/) and stock
+`pip` + `venv` are supported.
+
 ```bash
 git clone https://github.com/ShuwenKan/FTPrimitiveBench.git
 cd FTPrimitiveBench
-python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
+
+# uv (recommended)
+uv venv && source .venv/bin/activate         # Windows: .venv\Scripts\activate
+uv pip install -e ".[dev]"
+
+# or pip
+python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-This installs the package in editable mode along with all development
-dependencies (`pytest`, `pytest-cov`, `ruff`, `black`, `isort`, `build`,
-`twine`, `nbformat`, `jupyter`).
-
-For the optional visualization / sampling stacks:
-
-```bash
-pip install -e ".[viz]"        # matplotlib + plotly
-pip install -e ".[sampling]"   # sinter + pymatching
-pip install -e ".[all]"        # everything
-```
-
-Python ≥ 3.10 is required.
+`[dev]` pulls `pytest`, `pytest-cov`, `ruff`, `black`, `isort`, `build`,
+`twine`, `nbformat`, `jupyter`. Use `[viz]`, `[sampling]`, or `[all]` for
+the visualization / sampling stacks.
 
 ## Running tests
 

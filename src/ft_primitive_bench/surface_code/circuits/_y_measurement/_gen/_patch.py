@@ -5,26 +5,22 @@ of the "Inplace Access to the Surface Code Y Basis" codebase (Craig Gidney, 2023
 """
 
 import functools
-from typing import Tuple, Iterable, FrozenSet, Callable
+from typing import Callable, FrozenSet, Iterable, Tuple
 
 from ._tile import Tile
 from ._util import sorted_complex
 
 
 class Patch:
-    """A collection of annotated stabilizers to measure simultaneously.
-    """
+    """A collection of annotated stabilizers to measure simultaneously."""
 
-    def __init__(self,
-                 tiles: Iterable[Tile],
-                 *,
-                 do_not_sort: bool = False):
+    def __init__(self, tiles: Iterable[Tile], *, do_not_sort: bool = False):
         if do_not_sort:
             self.tiles = tuple(tiles)
         else:
             self.tiles = tuple(sorted_complex(tiles, key=lambda e: e.measurement_qubit))
 
-    def after_coordinate_transform(self, coord_transform: Callable[[complex], complex]) -> 'Patch':
+    def after_coordinate_transform(self, coord_transform: Callable[[complex], complex]) -> "Patch":
         return Patch(
             [e.after_coordinate_transform(coord_transform) for e in self.tiles],
         )

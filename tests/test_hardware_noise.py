@@ -1,15 +1,16 @@
 """Tests for surface_code.noise_models.hardware_noise public surface."""
+
 from __future__ import annotations
 
 import stim
 
-from ft_primitive_bench.surface_code.circuits import memory
 from ft_primitive_bench.noise_models import (
     NoiseModel,
     infer_moment_rounds,
     strip_noise_channels,
     uniform_depolarizing,
 )
+from ft_primitive_bench.surface_code.circuits import memory
 
 
 def test_noise_model_is_callable_via_factory():

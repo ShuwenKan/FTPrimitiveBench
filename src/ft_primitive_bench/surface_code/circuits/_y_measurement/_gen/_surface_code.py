@@ -8,7 +8,6 @@ Y-measurement circuit.
 
 
 def checkerboard_basis(q: complex) -> str:
-    """Classifies a coordinate as X type or Z type according to a checkerboard.
-    """
+    """Classifies a coordinate as X type or Z type according to a checkerboard."""
     is_x = int(q.real + q.imag) & 1 == 0
-    return 'X' if is_x else 'Z'
+    return "X" if is_x else "Z"

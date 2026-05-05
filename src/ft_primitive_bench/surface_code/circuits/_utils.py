@@ -3,6 +3,7 @@
 from typing import Dict, List, Optional, Tuple
 
 import stim
+
 from ._tile import Patch
 
 
@@ -24,8 +25,8 @@ def coord_sort_key(coord: complex) -> Tuple[float, float]:
 
 
 SCHEDULE_LAYER_MAPS: Dict[str, Dict[str, int]] = {
-    "X": {"UR": 0, "DR": 1, "UL": 2, "DL": 3},   # regular X tile
-    "Z": {"UR": 0, "UL": 1, "DR": 2, "DL": 3},   # regular Z tile
+    "X": {"UR": 0, "DR": 1, "UL": 2, "DL": 3},  # regular X tile
+    "Z": {"UR": 0, "UL": 1, "DR": 2, "DL": 3},  # regular Z tile
     "XX": {"DR": 0, "DL": 1, "UR": 2, "UL": 3},  # X-boundary surgery X tile
     "ZZ": {"DR": 0, "UR": 1, "DL": 2, "UL": 3},  # X-boundary surgery Z tile
 }
@@ -85,6 +86,7 @@ def append_surface_code_round(
     qubit as the control. ``swap_xz_roles`` flips this for the post-H
     rounds in ``transversal_h``.
     """
+
     def effective_basis(raw_basis: str) -> str:
         if not swap_xz_roles:
             return raw_basis

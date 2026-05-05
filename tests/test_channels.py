@@ -1,4 +1,5 @@
 """Tests for surface_code.noise_models.channels."""
+
 from __future__ import annotations
 
 import pytest

@@ -16,10 +16,9 @@ from __future__ import annotations
 import math
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
-from ..circuits._tile import Patch, Tile
-from ..circuits._make_circuit import build_merged_patch
 from ..circuits._build_patch import rectangular_surface_code_patch
-
+from ..circuits._make_circuit import build_merged_patch
+from ..circuits._tile import Patch, Tile
 
 GateMap = Mapping[complex, str]
 RoundGates = Union[GateMap, Sequence[Optional[GateMap]], None]
@@ -745,7 +744,7 @@ def plot_patch_timeline(
             else:
                 z_top = z_cursor
             z_mid = (z_bottom + z_top) / 2.0
-            total_rounds = sum(rounds_per_segment[start_idx:end_idx + 1])
+            total_rounds = sum(rounds_per_segment[start_idx : end_idx + 1])
             noun = "round" if total_rounds == 1 else "rounds"
             traces.append(
                 dict(
@@ -924,8 +923,6 @@ def plot_memory_timeline(
     destructive measurement). If ``rounds == 1`` both collapse to a single
     label — the measurement wins since it closes out the primitive.
     """
-    from ..circuits._build_patch import rectangular_surface_code_patch
-    from typing import List, Optional
 
     patch = rectangular_surface_code_patch(x_distance, z_distance)
     init_gates, meas_gates = _init_measure_gates(patch.data_set, meas_basis)
@@ -957,7 +954,6 @@ def plot_transversal_h_timeline(
     ``R{meas_basis}`` on round 1, transversal ``M{swapped_basis}`` on the
     final round (since the transversal H swaps the measurement basis).
     """
-    from ..circuits._build_patch import rectangular_surface_code_patch
 
     b = meas_basis.upper()
     swapped = "X" if b == "Z" else "Z"
@@ -1246,11 +1242,13 @@ def _parse_s_gate_rounds(
                         meas_z.add(coords[q])
 
         if phase_data_gates or phase_ancilla_gates or phase_xcy_edges:
-            sub_phases.append({
-                "data_gates": phase_data_gates,
-                "ancilla_gates": phase_ancilla_gates,
-                "xcy_edges": phase_xcy_edges,
-            })
+            sub_phases.append(
+                {
+                    "data_gates": phase_data_gates,
+                    "ancilla_gates": phase_ancilla_gates,
+                    "xcy_edges": phase_xcy_edges,
+                }
+            )
 
         if meas_x or meas_z:
             tiles: List[Tile] = []
@@ -1265,19 +1263,23 @@ def _parse_s_gate_rounds(
                 tiles.append(_tile_from_support(anc, support, basis))
 
             if not sub_phases:
-                sub_phases = [{
-                    "data_gates": {},
-                    "ancilla_gates": {},
-                    "xcy_edges": [],
-                }]
+                sub_phases = [
+                    {
+                        "data_gates": {},
+                        "ancilla_gates": {},
+                        "xcy_edges": [],
+                    }
+                ]
 
-            rounds.append({
-                "tiles": tiles,
-                "sub_phases": sub_phases,
-                "data_destroyed": frozenset(round_destroyed),
-                "meas_x": frozenset(meas_x),
-                "meas_z": frozenset(meas_z),
-            })
+            rounds.append(
+                {
+                    "tiles": tiles,
+                    "sub_phases": sub_phases,
+                    "data_destroyed": frozenset(round_destroyed),
+                    "meas_x": frozenset(meas_x),
+                    "meas_z": frozenset(meas_z),
+                }
+            )
 
             round_support = {}
             round_basis = {}
@@ -1313,9 +1315,7 @@ def _build_round_patch_from_tiles(
 
 def _tile_signature(tile: Tile) -> Tuple:
     """Hashable summary of a tile's shape (basis + meas + sorted data)."""
-    data = tuple(sorted(
-        (q.real, q.imag) for q in tile.data_qubits.values() if q is not None
-    ))
+    data = tuple(sorted((q.real, q.imag) for q in tile.data_qubits.values() if q is not None))
     return (tile.basis, tile.measurement_qubit.real, tile.measurement_qubit.imag, data)
 
 
@@ -1454,13 +1454,15 @@ def plot_s_gate_timeline(
                 combined_xcy or None,
             )
         else:
-            segments.append((
-                round_patch,
-                1,
-                merged_gates or None,
-                False,
-                xcy_edges or None,
-            ))
+            segments.append(
+                (
+                    round_patch,
+                    1,
+                    merged_gates or None,
+                    False,
+                    xcy_edges or None,
+                )
+            )
             phase_of_segment.append(phase_label)
 
         last_sig = sig

@@ -2,7 +2,6 @@
 
 from . import _build_patch
 from . import _make_circuit as make_circuit_module
-
 from ._build_patch import (
     boundary_tiles,
     checkerboard_weight4_patch,

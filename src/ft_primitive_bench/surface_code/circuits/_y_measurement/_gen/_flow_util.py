@@ -16,19 +16,19 @@ because it is only exercised by the upstream test-suite, not by the Y-magic
 measurement circuit construction.
 """
 
-from typing import Union, List, Tuple, Any, Optional, Dict, Literal
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import stim
 
+from ._builder import AtLayer, Builder, MeasurementTracker
 from ._chunk import Chunk
-from ._flow import PauliString, Flow
-from ._builder import MeasurementTracker, Builder, AtLayer
+from ._flow import Flow, PauliString
 from ._patch import Patch
 from ._util import sorted_complex
 
 
 def magic_init_for_chunk(
-        chunk: Chunk,
+    chunk: Chunk,
 ) -> Chunk:
     builder = Builder(
         q2i=chunk.q2i,
@@ -39,24 +39,22 @@ def magic_init_for_chunk(
     flows = []
     for flow in chunk.flows:
         if flow.start:
-            builder.measure_pauli_product(q2b=flow.start.qubits, key=AtLayer(index, 'solo'))
-            flows.append(Flow(
-                center=flow.center,
-                end=flow.start,
-                measurement_indices=[index],
-                obs_index=flow.obs_index,
-            ))
+            builder.measure_pauli_product(q2b=flow.start.qubits, key=AtLayer(index, "solo"))
+            flows.append(
+                Flow(
+                    center=flow.center,
+                    end=flow.start,
+                    measurement_indices=[index],
+                    obs_index=flow.obs_index,
+                )
+            )
             index += 1
 
-    return Chunk(
-        circuit=builder.circuit,
-        q2i=builder.q2i,
-        flows=flows
-    )
+    return Chunk(circuit=builder.circuit, q2i=builder.q2i, flows=flows)
 
 
 def magic_measure_for_chunk(
-        chunk: Chunk,
+    chunk: Chunk,
 ) -> Chunk:
     builder = Builder(
         q2i=chunk.q2i,
@@ -67,33 +65,31 @@ def magic_measure_for_chunk(
     flows = []
     for flow in chunk.flows:
         if flow.end:
-            key = AtLayer(index, 'solo')
+            key = AtLayer(index, "solo")
             builder.measure_pauli_product(q2b=flow.end.qubits, key=key)
-            flows.append(Flow(
-                center=flow.center,
-                start=flow.end,
-                measurement_indices=[index],
-                obs_index=flow.obs_index,
-            ))
+            flows.append(
+                Flow(
+                    center=flow.center,
+                    start=flow.end,
+                    measurement_indices=[index],
+                    obs_index=flow.obs_index,
+                )
+            )
             index += 1
 
-    return Chunk(
-        circuit=builder.circuit,
-        q2i=builder.q2i,
-        flows=flows
-    )
+    return Chunk(circuit=builder.circuit, q2i=builder.q2i, flows=flows)
 
 
 def build_surface_code_round_circuit(
-        patch: Patch,
-        *,
-        init_data_basis: Union[None, str, Dict[complex, str]] = None,
-        measure_data_basis: Union[None, str, Dict[complex, str]] = None,
-        save_layer: Any,
-        out: Builder,
+    patch: Patch,
+    *,
+    init_data_basis: Union[None, str, Dict[complex, str]] = None,
+    measure_data_basis: Union[None, str, Dict[complex, str]] = None,
+    save_layer: Any,
+    out: Builder,
 ):
-    measure_xs = Patch([tile for tile in patch.tiles if tile.basis == 'X'])
-    measure_zs = Patch([tile for tile in patch.tiles if tile.basis == 'Z'])
+    measure_xs = Patch([tile for tile in patch.tiles if tile.basis == "X"])
+    measure_zs = Patch([tile for tile in patch.tiles if tile.basis == "Z"])
     if init_data_basis is None:
         init_data_basis = {}
     elif isinstance(init_data_basis, str):
@@ -104,36 +100,41 @@ def build_surface_code_round_circuit(
         measure_data_basis = {q: measure_data_basis for q in patch.data_set}
 
     out.gate("RX", measure_xs.measure_set)
-    for basis in 'XYZ':
+    for basis in "XYZ":
         qs = [q for q in init_data_basis if init_data_basis[q] == basis]
         if qs:
             out.gate(f"R{basis}", qs)
     out.gate("R", measure_zs.measure_set)
     out.tick()
 
-    num_layers, = {len(tile.ordered_data_qubits) for tile in patch.tiles}
+    (num_layers,) = {len(tile.ordered_data_qubits) for tile in patch.tiles}
     for k in range(num_layers):
-        out.gate2('CX', [
-            (tile.measurement_qubit, tile.ordered_data_qubits[k])[::-1 if tile.basis == 'Z' else +1]
-            for tile in patch.tiles
-            if tile.ordered_data_qubits[k] is not None
-        ])
+        out.gate2(
+            "CX",
+            [
+                (tile.measurement_qubit, tile.ordered_data_qubits[k])[
+                    :: -1 if tile.basis == "Z" else +1
+                ]
+                for tile in patch.tiles
+                if tile.ordered_data_qubits[k] is not None
+            ],
+        )
         out.tick()
 
-    out.measure(measure_xs.measure_set, basis='X', save_layer=save_layer)
-    for basis in 'XYZ':
+    out.measure(measure_xs.measure_set, basis="X", save_layer=save_layer)
+    for basis in "XYZ":
         qs = [q for q in measure_data_basis if measure_data_basis[q] == basis]
         if qs:
             out.measure(qs, basis=basis, save_layer=save_layer)
-    out.measure(measure_zs.measure_set, basis='Z', save_layer=save_layer)
+    out.measure(measure_zs.measure_set, basis="Z", save_layer=save_layer)
 
 
 def standard_surface_code_chunk(
-        patch: Patch,
-        *,
-        init_data_basis: Union[None, str, Dict[complex, str]] = None,
-        measure_data_basis: Union[None, str, Dict[complex, str]] = None,
-        obs: Optional[PauliString] = None,
+    patch: Patch,
+    *,
+    init_data_basis: Union[None, str, Dict[complex, str]] = None,
+    measure_data_basis: Union[None, str, Dict[complex, str]] = None,
+    obs: Optional[PauliString] = None,
 ) -> Chunk:
     if init_data_basis is None:
         init_data_basis = {}
@@ -145,7 +146,7 @@ def standard_surface_code_chunk(
         measure_data_basis = {q: measure_data_basis for q in patch.data_set}
 
     out = Builder.for_qubits(patch.used_set)
-    save_layer = 'solo'
+    save_layer = "solo"
     build_surface_code_round_circuit(
         patch=patch,
         init_data_basis=init_data_basis,
@@ -160,7 +161,9 @@ def standard_surface_code_chunk(
             Flow(
                 center=tile.measurement_qubit,
                 start=PauliString.from_tile_data(tile),
-                measurement_indices=out.tracker.measurement_indices([AtLayer(tile.measurement_qubit, save_layer)]),
+                measurement_indices=out.tracker.measurement_indices(
+                    [AtLayer(tile.measurement_qubit, save_layer)]
+                ),
             )
             for tile in patch.tiles
         )
@@ -169,28 +172,37 @@ def standard_surface_code_chunk(
             Flow(
                 center=tile.measurement_qubit,
                 end=PauliString.from_tile_data(tile),
-                measurement_indices=out.tracker.measurement_indices([AtLayer(tile.measurement_qubit, save_layer)]),
+                measurement_indices=out.tracker.measurement_indices(
+                    [AtLayer(tile.measurement_qubit, save_layer)]
+                ),
             )
             for tile in patch.tiles
         )
     flows.extend(
         Flow(
             center=tile.measurement_qubit,
-            measurement_indices=out.tracker.measurement_indices([AtLayer(tile.measurement_qubit, save_layer)])
+            measurement_indices=out.tracker.measurement_indices(
+                [AtLayer(tile.measurement_qubit, save_layer)]
+            ),
         )
         for tile in patch.tiles
-        if all(q is None or init_data_basis.get(q) == b for q, b in zip(tile.ordered_data_qubits, tile.bases))
+        if all(
+            q is None or init_data_basis.get(q) == b
+            for q, b in zip(tile.ordered_data_qubits, tile.bases)
+        )
     )
     flows.extend(
         Flow(
             center=tile.measurement_qubit,
-            measurement_indices=out.tracker.measurement_indices([
-                AtLayer(q, save_layer)
-                for q in tile.used_set
-            ]),
+            measurement_indices=out.tracker.measurement_indices(
+                [AtLayer(q, save_layer) for q in tile.used_set]
+            ),
         )
         for tile in patch.tiles
-        if all(q is None or measure_data_basis.get(q) == b for q, b in zip(tile.ordered_data_qubits, tile.bases))
+        if all(
+            q is None or measure_data_basis.get(q) == b
+            for q, b in zip(tile.ordered_data_qubits, tile.bases)
+        )
     )
     if obs is not None:
         start_obs = dict(obs.qubits)
@@ -204,9 +216,7 @@ def standard_surface_code_chunk(
             if q in end_obs:
                 if end_obs.pop(q) != measure_data_basis[q]:
                     raise ValueError("wrong measure basis for obs")
-                measure_indices.extend(out.tracker.measurement_indices([
-                    AtLayer(q, save_layer)
-                ]))
+                measure_indices.extend(out.tracker.measurement_indices([AtLayer(q, save_layer)]))
 
         flows.append(
             Flow(
@@ -218,18 +228,20 @@ def standard_surface_code_chunk(
             )
         )
 
-    return Chunk(
-        circuit=out.circuit,
-        q2i=out.q2i,
-        flows=flows
-    )
+    return Chunk(circuit=out.circuit, q2i=out.q2i, flows=flows)
 
 
-def relabel_circuit_into(*, circuit: stim.Circuit, old_q2i: Dict[complex, int], new_q2i: Dict[complex, int], out: stim.Circuit):
+def relabel_circuit_into(
+    *,
+    circuit: stim.Circuit,
+    old_q2i: Dict[complex, int],
+    new_q2i: Dict[complex, int],
+    out: stim.Circuit,
+):
     i2i = {i: new_q2i[q] for q, i in old_q2i.items()}
 
     for inst in circuit:
-        if inst.name == 'QUBIT_COORDS':
+        if inst.name == "QUBIT_COORDS":
             continue
         targets = []
         for t in inst.targets_copy():
@@ -244,12 +256,17 @@ def relabel_circuit_into(*, circuit: stim.Circuit, old_q2i: Dict[complex, int], 
             elif t.is_combiner:
                 targets.append(t)
             else:
-                raise NotImplementedError(f'{inst=}')
+                raise NotImplementedError(f"{inst=}")
         out.append(inst.name, targets, inst.gate_args_copy())
 
 
 class ChunkCompileState:
-    def __init__(self, *, open_flows: Dict[Tuple[PauliString, Any], Union[Flow, Literal["discard"]]], measure_offset: int):
+    def __init__(
+        self,
+        *,
+        open_flows: Dict[Tuple[PauliString, Any], Union[Flow, Literal["discard"]]],
+        measure_offset: int,
+    ):
         self.open_flows = open_flows
         self.measure_offset = measure_offset
 
@@ -270,12 +287,15 @@ def compile_chunk_into_circuit(
         circuits = []
         measure_offset_start_of_loop = state.measure_offset
         while len(circuits) < chunk.repetitions:
-            fully_in_loop = min(
-                m
-                for flow in state.open_flows.values()
-                if isinstance(flow, Flow)
-                for m in flow.measurement_indices
-            ) >= measure_offset_start_of_loop
+            fully_in_loop = (
+                min(
+                    m
+                    for flow in state.open_flows.values()
+                    if isinstance(flow, Flow)
+                    for m in flow.measurement_indices
+                )
+                >= measure_offset_start_of_loop
+            )
 
             circuits.append(stim.Circuit())
             state = compile_chunk_into_circuit(
@@ -308,7 +328,7 @@ def compile_chunk_into_circuit(
         return state
 
     prev_flows = dict(state.open_flows)
-    next_flows: Dict[Tuple[PauliString, Any], Union[Flow, Literal['discard']]] = {}
+    next_flows: Dict[Tuple[PauliString, Any], Union[Flow, Literal["discard"]]] = {}
     dumped_flows: List[Flow] = []
     if include_detectors:
         for flow in chunk.flows:
@@ -317,7 +337,7 @@ def compile_chunk_into_circuit(
                 start=flow.start,
                 end=flow.end,
                 obs_index=flow.obs_index,
-                measurement_indices=[m + state.measure_offset for m in flow.measurement_indices]
+                measurement_indices=[m + state.measure_offset for m in flow.measurement_indices],
             )
             if flow.start:
                 prev = prev_flows.pop((flow.start, flow.obs_index), None)
@@ -326,13 +346,15 @@ def compile_chunk_into_circuit(
                         continue
                     else:
                         raise ValueError(f"Missing prev {flow!r} have {prev_flows!r}")
-                elif prev == 'discard':
+                elif prev == "discard":
                     continue
                 flow = prev.concat(flow, 0)
             if flow.end:
                 if flow.obs_index is not None and flow.measurement_indices:
                     dumped_flows.append(flow)
-                    flow = Flow(start=flow.start, end=flow.end, obs_index=flow.obs_index, center=flow.center)
+                    flow = Flow(
+                        start=flow.start, end=flow.end, obs_index=flow.obs_index, center=flow.center
+                    )
                 next_flows[(flow.end, flow.obs_index)] = flow
             else:
                 dumped_flows.append(flow)
@@ -343,7 +365,9 @@ def compile_chunk_into_circuit(
             next_flows[(discarded, None)] = "discard"
         for flow, val in prev_flows.items():
             if val != "discard" and not ignore_errors:
-                raise ValueError(f"Some flows weren't matched when moving into chunk: {list(prev_flows.values())!r}")
+                raise ValueError(
+                    f"Some flows weren't matched when moving into chunk: {list(prev_flows.values())!r}"
+                )
 
     new_measure_offset = state.measure_offset + chunk.circuit.num_measurements
     relabel_circuit_into(circuit=chunk.circuit, out=out_circuit, old_q2i=chunk.q2i, new_q2i=q2i)
@@ -367,11 +391,12 @@ def compile_chunk_into_circuit(
         open_flows=next_flows,
     )
 
+
 def compile_chunks_into_circuit(
-        chunks: List[Chunk],
-        *,
-        include_detectors: bool = True,
-        ignore_errors: bool = False,
+    chunks: List[Chunk],
+    *,
+    include_detectors: bool = True,
+    ignore_errors: bool = False,
 ) -> stim.Circuit:
     all_qubits = set()
     for c in chunks:
@@ -379,7 +404,7 @@ def compile_chunks_into_circuit(
     q2i = {q: i for i, q in enumerate(sorted_complex(set(all_qubits)))}
     full_circuit = stim.Circuit()
     for q, i in q2i.items():
-        full_circuit.append('QUBIT_COORDS', i, [q.real, q.imag])
+        full_circuit.append("QUBIT_COORDS", i, [q.real, q.imag])
 
     state = ChunkCompileState(open_flows={}, measure_offset=0)
     for k, chunk in enumerate(chunks):

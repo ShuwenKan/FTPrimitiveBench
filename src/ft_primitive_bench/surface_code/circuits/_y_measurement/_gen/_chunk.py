@@ -4,24 +4,26 @@ Ported verbatim (with relative imports only) from the ``midout.gen._chunk`` modu
 the "Inplace Access to the Surface Code Y Basis" codebase (Craig Gidney, 2023).
 """
 
-from typing import Iterable, Dict, Callable
+from typing import Callable, Dict, Iterable
 
 import stim
 
-from ._util import stim_circuit_with_transformed_coords
 from ._flow import Flow, PauliString
 from ._patch import Patch
 from ._tile import Tile
+from ._util import stim_circuit_with_transformed_coords
 
 
 class Chunk:
-    def __init__(self,
-                 circuit: stim.Circuit,
-                 q2i: Dict[complex, int],
-                 flows: Iterable[Flow],
-                 discarded_inputs: Iterable[PauliString] = (),
-                 discarded_outputs: Iterable[PauliString] = (),
-                 repetitions: int = 1):
+    def __init__(
+        self,
+        circuit: stim.Circuit,
+        q2i: Dict[complex, int],
+        flows: Iterable[Flow],
+        discarded_inputs: Iterable[PauliString] = (),
+        discarded_outputs: Iterable[PauliString] = (),
+        repetitions: int = 1,
+    ):
         self.q2i = q2i
         self.circuit = circuit
         self.flows = tuple(flows)
@@ -29,15 +31,18 @@ class Chunk:
         self.discarded_outputs = discarded_outputs
         self.repetitions = repetitions
 
-    def with_repetitions(self, new_repetitions: int) -> 'Chunk':
-        return Chunk(circuit=self.circuit, q2i=self.q2i, flows=self.flows, repetitions=new_repetitions)
+    def with_repetitions(self, new_repetitions: int) -> "Chunk":
+        return Chunk(
+            circuit=self.circuit, q2i=self.q2i, flows=self.flows, repetitions=new_repetitions
+        )
 
-    def __mul__(self, other: int) -> 'Chunk':
+    def __mul__(self, other: int) -> "Chunk":
         return self.with_repetitions(other)
 
     def verify(self):
         """Checks that this chunk's circuit actually implements its flows."""
         from ._flow_verifier import FlowStabilizerVerifier
+
         FlowStabilizerVerifier.verify(self)
 
         starts = {}
@@ -51,12 +56,13 @@ class Chunk:
             if starts != ends:
                 raise ValueError("Not an exact loop.")
 
-    def inverted(self) -> 'Chunk':
+    def inverted(self) -> "Chunk":
         """Checks that this chunk's circuit actually implements its flows."""
         from ._flow_verifier import FlowStabilizerVerifier
+
         return FlowStabilizerVerifier.invert(self)
 
-    def with_xz_flipped(self) -> 'Chunk':
+    def with_xz_flipped(self) -> "Chunk":
         return Chunk(
             q2i=self.q2i,
             circuit=circuit_with_xz_flipped(self.circuit),
@@ -66,32 +72,36 @@ class Chunk:
             repetitions=self.repetitions,
         )
 
-    def with_transformed_coords(self, transform: Callable[[complex], complex]) -> 'Chunk':
+    def with_transformed_coords(self, transform: Callable[[complex], complex]) -> "Chunk":
         return Chunk(
             q2i={transform(q): i for q, i in self.q2i.items()},
             circuit=stim_circuit_with_transformed_coords(self.circuit, transform),
             flows=[flow.with_transformed_coords(transform) for flow in self.flows],
             discarded_inputs=[p.with_transformed_coords(transform) for p in self.discarded_inputs],
-            discarded_outputs=[p.with_transformed_coords(transform) for p in self.discarded_outputs],
+            discarded_outputs=[
+                p.with_transformed_coords(transform) for p in self.discarded_outputs
+            ],
             repetitions=self.repetitions,
         )
 
-    def magic_init_chunk(self) -> 'Chunk':
+    def magic_init_chunk(self) -> "Chunk":
         """Returns a chunk that initializes the stabilizers needed by this one.
 
         The stabilizers are initialized using direct measurement by MPP, with
         no care for connectivity or physical limitations of hardware.
         """
         from ._flow_util import magic_init_for_chunk
+
         return magic_init_for_chunk(self)
 
-    def magic_end_chunk(self) -> 'Chunk':
+    def magic_end_chunk(self) -> "Chunk":
         """Returns a chunk that terminates the stabilizers produced by this one.
 
         The stabilizers are initialized using direct measurement by MPP, with
         no care for connectivity or physical limitations of hardware.
         """
         from ._flow_util import magic_measure_for_chunk
+
         return magic_measure_for_chunk(self)
 
     def _boundary_patch(self, end: bool) -> Patch:
@@ -99,11 +109,13 @@ class Chunk:
         for flow in self.flows:
             r = flow.end if end else flow.start
             if r.qubits and flow.obs_index is None:
-                tiles.append(Tile(
-                    ordered_data_qubits=r.qubits.keys(),
-                    bases=''.join(r.qubits.values()),
-                    measurement_qubit=list(r.qubits.keys())[0],
-                ))
+                tiles.append(
+                    Tile(
+                        ordered_data_qubits=r.qubits.keys(),
+                        bases="".join(r.qubits.values()),
+                        measurement_qubit=list(r.qubits.keys())[0],
+                    )
+                )
         return Patch(tiles)
 
     def start_patch(self) -> Patch:
@@ -179,12 +191,16 @@ def circuit_with_xz_flipped(circuit: stim.Circuit) -> stim.Circuit:
     result = stim.Circuit()
     for inst in circuit:
         if isinstance(inst, stim.CircuitRepeatBlock):
-            result.append(stim.CircuitRepeatBlock(
-                body=circuit_with_xz_flipped(inst.body_copy()),
-                repeat_count=inst.repeat_count))
+            result.append(
+                stim.CircuitRepeatBlock(
+                    body=circuit_with_xz_flipped(inst.body_copy()), repeat_count=inst.repeat_count
+                )
+            )
         else:
             other = XZ_FLIPPED.get(inst.name)
             if other is None:
-                raise NotImplementedError(f'{inst=}')
-            result.append(stim.CircuitInstruction(other, inst.targets_copy(), inst.gate_args_copy()))
+                raise NotImplementedError(f"{inst=}")
+            result.append(
+                stim.CircuitInstruction(other, inst.targets_copy(), inst.gate_args_copy())
+            )
     return result

@@ -1,4 +1,4 @@
-from typing import Tuple,Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import stim
 
@@ -6,9 +6,9 @@ from ._build_patch import rectangular_surface_code_patch
 from ._tile import Patch
 from ._utils import (
     append_repeated_phase,
+    build_schedule,
     build_surface_code_round_circuit,
     c2xy,
-    build_schedule,
     coord_sort_key,
     resolve_schedule,
 )
@@ -106,15 +106,11 @@ def _build_rectangular_memory_raw(
     for k, coord in enumerate(meas_z_coords):
         curr = stim.target_rec(-(n_z - k))
         prev = stim.target_rec(-(n_z - k) - stab_per_round)
-        compare_round_fragment.append(
-            "DETECTOR", [curr, prev], (coord.real, coord.imag, 0)
-        )
+        compare_round_fragment.append("DETECTOR", [curr, prev], (coord.real, coord.imag, 0))
     for k, coord in enumerate(meas_x_coords):
         curr = stim.target_rec(-(n_z + n_x - k))
         prev = stim.target_rec(-(n_z + n_x - k) - stab_per_round)
-        compare_round_fragment.append(
-            "DETECTOR", [curr, prev], (coord.real, coord.imag, 0)
-        )
+        compare_round_fragment.append("DETECTOR", [curr, prev], (coord.real, coord.imag, 0))
 
     if rounds > 0:
         append_repeated_phase(
@@ -223,8 +219,8 @@ def _build_rectangular_lattice_surgery_raw(
     meas_basis: str = "Z",
 ) -> stim.Circuit:
     """Construct a lattice surgery circuit for MZZ or MXX with optional surface-code memory rounds.
-       The layout will be the first plaquette will always be Z type and the top/bottom boundary will be X type
-       Therefore MZZ will be vertical and MXX will be horizonal
+    The layout will be the first plaquette will always be Z type and the top/bottom boundary will be X type
+    Therefore MZZ will be vertical and MXX will be horizonal
     """
     meas_basis = meas_basis.upper()
     if meas_basis not in {"X", "Z"}:
@@ -265,7 +261,6 @@ def _build_rectangular_lattice_surgery_raw(
         merged_boundaries=boundary_presets[meas_basis],
     )
 
-
     individual_patch._invalidate_cached_sets()
     circuit = stim.Circuit()
 
@@ -282,7 +277,6 @@ def _build_rectangular_lattice_surgery_raw(
 
     def targets(coords: Iterable[complex]) -> List[int]:
         return [index_of[c] for c in sorted(coords, key=coord_sort_key)]
-
 
     individual_data = set(individual_patch.data_set)
     data_init_gate = {"Z": "RZ", "X": "RX"}[meas_basis]
@@ -377,7 +371,7 @@ def _build_rectangular_lattice_surgery_raw(
         if prepend_shift:
             frag.append("SHIFT_COORDS", [], (0, 0, 1))
         frag += individual_round
-        for c in (individual_meas_z_coords if meas_basis == "Z" else individual_meas_x_coords):
+        for c in individual_meas_z_coords if meas_basis == "Z" else individual_meas_x_coords:
             frag.append(
                 "DETECTOR",
                 [stim.target_rec(_curr_indiv(meas_basis, c))],
@@ -391,13 +385,15 @@ def _build_rectangular_lattice_surgery_raw(
         frag += individual_round
         for c in individual_meas_x_coords:
             curr = _curr_indiv("X", c)
-            frag.append("DETECTOR",
+            frag.append(
+                "DETECTOR",
                 [stim.target_rec(curr), stim.target_rec(curr - n_indiv)],
                 (c.real, c.imag, 0),
             )
         for c in individual_meas_z_coords:
             curr = _curr_indiv("Z", c)
-            frag.append("DETECTOR",
+            frag.append(
+                "DETECTOR",
                 [stim.target_rec(curr), stim.target_rec(curr - n_indiv)],
                 (c.real, c.imag, 0),
             )
@@ -426,12 +422,14 @@ def _build_rectangular_lattice_surgery_raw(
             if ttype == "A":
                 # Deterministic if (prev_ok) OR (pre_rounds==0 and basis==meas_basis).
                 if prev_ok:
-                    frag.append("DETECTOR",
+                    frag.append(
+                        "DETECTOR",
                         [stim.target_rec(curr), stim.target_rec(prev)],
                         (m_coord.real, m_coord.imag, 0),
                     )
                 elif basis == meas_basis:
-                    frag.append("DETECTOR",
+                    frag.append(
+                        "DETECTOR",
                         [stim.target_rec(curr)],
                         (m_coord.real, m_coord.imag, 0),
                     )
@@ -439,7 +437,8 @@ def _build_rectangular_lattice_surgery_raw(
             elif ttype == "B":
                 # Deterministic only if basis == ancilla_basis AND prev_ok (ancilla XOR = +1).
                 if prev_ok and basis == ancilla_basis:
-                    frag.append("DETECTOR",
+                    frag.append(
+                        "DETECTOR",
                         [stim.target_rec(curr), stim.target_rec(prev)],
                         (m_coord.real, m_coord.imag, 0),
                     )
@@ -447,7 +446,8 @@ def _build_rectangular_lattice_surgery_raw(
             else:  # TYPE C
                 # Deterministic if basis == ancilla_basis.
                 if basis == ancilla_basis:
-                    frag.append("DETECTOR",
+                    frag.append(
+                        "DETECTOR",
                         [stim.target_rec(curr)],
                         (m_coord.real, m_coord.imag, 0),
                     )
@@ -459,13 +459,15 @@ def _build_rectangular_lattice_surgery_raw(
         frag += merged_round
         for c in merged_meas_x_coords:
             curr = _curr_merged("X", c)
-            frag.append("DETECTOR",
+            frag.append(
+                "DETECTOR",
                 [stim.target_rec(curr), stim.target_rec(curr - n_merged)],
                 (c.real, c.imag, 0),
             )
         for c in merged_meas_z_coords:
             curr = _curr_merged("Z", c)
-            frag.append("DETECTOR",
+            frag.append(
+                "DETECTOR",
                 [stim.target_rec(curr), stim.target_rec(curr - n_merged)],
                 (c.real, c.imag, 0),
             )
@@ -544,8 +546,7 @@ def _build_rectangular_lattice_surgery_raw(
             # Last-merge-round stab rec, shifted back by n_ancilla destructive recs.
             last_merge_stab = _curr_merged(basis, m_coord) - n_ancilla
             ancilla_recs = [
-                stim.target_rec(-(n_ancilla - ancilla_pos[d]))
-                for d in D_anc if d in ancilla_pos
+                stim.target_rec(-(n_ancilla - ancilla_pos[d])) for d in D_anc if d in ancilla_pos
             ]
             if not ancilla_recs:
                 continue
@@ -577,14 +578,14 @@ def _build_rectangular_lattice_surgery_raw(
                     last_merge = -(n_indiv + n_ancilla + n_merged_z - merged_z_pos[m])
 
                 if ttype == "A":
-                    frag.append("DETECTOR",
+                    frag.append(
+                        "DETECTOR",
                         [stim.target_rec(curr), stim.target_rec(last_merge)],
                         (m.real, m.imag, 0),
                     )
                 elif ttype == "B":
                     anc_offsets = [
-                        -(n_indiv + n_ancilla - ancilla_pos[d])
-                        for d in D_anc if d in ancilla_pos
+                        -(n_indiv + n_ancilla - ancilla_pos[d]) for d in D_anc if d in ancilla_pos
                     ]
                     refs = [stim.target_rec(curr), stim.target_rec(last_merge)] + [
                         stim.target_rec(o) for o in anc_offsets
@@ -599,13 +600,15 @@ def _build_rectangular_lattice_surgery_raw(
             frag += individual_round
             for c in individual_meas_x_coords:
                 curr = _curr_indiv("X", c)
-                frag.append("DETECTOR",
+                frag.append(
+                    "DETECTOR",
                     [stim.target_rec(curr), stim.target_rec(curr - n_indiv)],
                     (c.real, c.imag, 0),
                 )
             for c in individual_meas_z_coords:
                 curr = _curr_indiv("Z", c)
-                frag.append("DETECTOR",
+                frag.append(
+                    "DETECTOR",
                     [stim.target_rec(curr), stim.target_rec(curr - n_indiv)],
                     (c.real, c.imag, 0),
                 )
@@ -652,10 +655,7 @@ def _build_rectangular_lattice_surgery_raw(
                 if ttype == "B":
                     continue
 
-            data_recs = [
-                stim.target_rec(-(n_data - data_pos[d]))
-                for d in D_i if d in data_pos
-            ]
+            data_recs = [stim.target_rec(-(n_data - data_pos[d])) for d in D_i if d in data_pos]
             if not data_recs:
                 continue
             circuit.append(
@@ -685,7 +685,6 @@ def lattice_surgery(
         post_rounds,
         meas_basis=meas_basis,
     )
-
 
 
 def build_merged_patch(
@@ -735,7 +734,7 @@ def _build_merged_patch_components(
                 base[key] = value.upper()
         return base
 
-    def make_patch(patch_width,patch_height: int, boundaries: Dict[str, str]) -> Patch:
+    def make_patch(patch_width, patch_height: int, boundaries: Dict[str, str]) -> Patch:
         return rectangular_surface_code_patch(
             patch_width,
             patch_height,
@@ -756,7 +755,11 @@ def _build_merged_patch_components(
     individual_patch = Patch(first_patch.tiles)
     individual_patch.extend(second_patch.tiles)
 
-    merged_extent = (x_distance, z_distance * 2 + bridge_length) if not horizontal else (x_distance * 2 + bridge_length, z_distance)
+    merged_extent = (
+        (x_distance, z_distance * 2 + bridge_length)
+        if not horizontal
+        else (x_distance * 2 + bridge_length, z_distance)
+    )
     merged_patch = make_patch(*merged_extent, merged_boundaries)
 
     return first_patch, second_patch, individual_patch, merged_patch
@@ -798,19 +801,14 @@ def _logical_bridge_measurement_positions(
     if meas_basis == "X":
         left_x, right_x = sorted((first_chain[0].real, second_chain[0].real))
         return [
-            idx
-            for idx, coord in enumerate(merged_meas_x_coords)
-            if left_x < coord.real < right_x
+            idx for idx, coord in enumerate(merged_meas_x_coords) if left_x < coord.real < right_x
         ]
     if meas_basis == "Z":
         lower_y, upper_y = sorted((first_chain[0].imag, second_chain[0].imag))
         return [
-            idx
-            for idx, coord in enumerate(merged_meas_z_coords)
-            if lower_y < coord.imag < upper_y
+            idx for idx, coord in enumerate(merged_meas_z_coords) if lower_y < coord.imag < upper_y
         ]
     raise ValueError(f"Unsupported logical basis {meas_basis!r}")
-
 
 
 def patch_midlines(patch: Patch, *, horizontal: bool) -> Tuple[float, float]:
@@ -845,7 +843,6 @@ def patch_midlines(patch: Patch, *, horizontal: bool) -> Tuple[float, float]:
     return (lower_mid, upper_mid)
 
 
-
 def transversal_h(
     x_distance: int,
     z_distance: int,
@@ -856,7 +853,7 @@ def transversal_h(
     """Transversal logical Hadamard between ``pre_rounds`` stabilizer rounds
     before the H layer and ``post_rounds`` rounds after it (with X/Z
     stabilizer roles swapped post-H)."""
-    transversal_gate = 'H'
+    transversal_gate = "H"
     patch = rectangular_surface_code_patch(x_distance, z_distance)
     schedule, layer_count = build_schedule(patch)
 
@@ -900,17 +897,23 @@ def transversal_h(
             meas_x_targets,
             meas_z_targets,
         )
-        if meas_basis == 'Z':
+        if meas_basis == "Z":
             for i in range(len(meas_z_targets)):
-                coord = idx2coord[meas_z_targets[-(i+1)]]
-                fragment.append('DETECTOR', [stim.target_rec(-i-1)], (coord.real, coord.imag, 0))
+                coord = idx2coord[meas_z_targets[-(i + 1)]]
+                fragment.append("DETECTOR", [stim.target_rec(-i - 1)], (coord.real, coord.imag, 0))
         else:
             for i in range(len(meas_x_targets)):
-                coord = idx2coord[meas_x_targets[-(i+1)]]
-                fragment.append('DETECTOR', [stim.target_rec(-i-1-len(meas_z_targets))], (coord.real, coord.imag, 0))
+                coord = idx2coord[meas_x_targets[-(i + 1)]]
+                fragment.append(
+                    "DETECTOR",
+                    [stim.target_rec(-i - 1 - len(meas_z_targets))],
+                    (coord.real, coord.imag, 0),
+                )
         return fragment
 
-    def build_compare_round_fragment(*, swap_xz_roles: bool = False, measure_z_first: bool = False) -> stim.Circuit:
+    def build_compare_round_fragment(
+        *, swap_xz_roles: bool = False, measure_z_first: bool = False
+    ) -> stim.Circuit:
         fragment = stim.Circuit()
         fragment.append("SHIFT_COORDS", [], (0, 0, 1))
         fragment += build_surface_code_round_circuit(
@@ -930,17 +933,20 @@ def transversal_h(
             time_ordered = list(meas_x_targets) + list(meas_z_targets)
         num_meas = len(time_ordered)
         for i in range(num_meas):
-            coord = idx2coord[time_ordered[-(i+1)]]
-            fragment.append('DETECTOR', [stim.target_rec(-i-1), stim.target_rec(-i-1-num_meas)], (coord.real, coord.imag, 0))
+            coord = idx2coord[time_ordered[-(i + 1)]]
+            fragment.append(
+                "DETECTOR",
+                [stim.target_rec(-i - 1), stim.target_rec(-i - 1 - num_meas)],
+                (coord.real, coord.imag, 0),
+            )
         return fragment
-
 
     circuit += build_deterministic_round_fragment()
     append_repeated_phase(circuit, max(0, pre_rounds), build_compare_round_fragment())
 
     circuit.append(transversal_gate, data_targets)
     circuit.append("TICK")
-    meas_basis = 'Z' if meas_basis == 'X' else 'X'
+    meas_basis = "Z" if meas_basis == "X" else "X"
     data_meas_gate = {"Z": "MZ", "X": "MX"}[meas_basis]
     meas_x_targets, meas_z_targets = meas_z_targets, meas_x_targets
 
@@ -951,6 +957,7 @@ def transversal_h(
     )
 
     circuit.append(data_meas_gate, data_targets)
+
     def logical_strip_coords() -> List[complex]:
         if not data:
             return []
@@ -975,7 +982,7 @@ def transversal_h(
         if rec_targets:
             circuit.append("OBSERVABLE_INCLUDE", rec_targets, 0)
 
-    selected = [tile for tile in patch.tiles if tile.basis == ('X' if meas_basis == 'Z' else 'Z')]
+    selected = [tile for tile in patch.tiles if tile.basis == ("X" if meas_basis == "Z" else "Z")]
 
     total_meas = meas_z_targets + meas_x_targets + data_targets
     offset_of = {v: i for i, v in enumerate(total_meas)}
@@ -988,7 +995,6 @@ def transversal_h(
             index_of[coord] for coord in tile.data_qubits.values() if coord is not None
         ]
         stim_rec_targets = [stim.target_rec(-n_total_meas + offset_of[idx]) for idx in total_idx]
-        circuit.append('DETECTOR', stim_rec_targets, (m_coord.real, m_coord.imag, 0))
+        circuit.append("DETECTOR", stim_rec_targets, (m_coord.real, m_coord.imag, 0))
 
-
-    return circuit  
+    return circuit

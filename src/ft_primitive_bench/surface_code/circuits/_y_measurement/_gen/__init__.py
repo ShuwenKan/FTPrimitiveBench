@@ -6,40 +6,19 @@ in ``_circuits/`` expect the same import names (``gen.Chunk``, ``gen.Builder``,
 ...) so this module keeps them working through a single relative import.
 """
 
-from ._builder import (
-    Builder,
-    AtLayer,
-    MeasurementTracker,
-)
-from ._tile import (
-    Tile,
-)
-from ._patch import (
-    Patch,
-)
-from ._util import (
-    stim_circuit_with_transformed_coords,
-    sorted_complex,
-    complex_key,
-)
-from ._surface_code import (
-    checkerboard_basis,
-)
+from ._builder import AtLayer, Builder, MeasurementTracker
+from ._chunk import Chunk
+from ._flow import Flow, PauliString
 from ._flow_util import (
-    standard_surface_code_chunk,
-    compile_chunks_into_circuit,
     build_surface_code_round_circuit,
+    compile_chunks_into_circuit,
+    standard_surface_code_chunk,
 )
-from ._chunk import (
-    Chunk,
-)
-from ._flow import (
-    Flow,
-    PauliString,
-)
-from ._flow_verifier import (
-    FlowStabilizerVerifier,
-)
+from ._flow_verifier import FlowStabilizerVerifier
+from ._patch import Patch
+from ._surface_code import checkerboard_basis
+from ._tile import Tile
+from ._util import complex_key, sorted_complex, stim_circuit_with_transformed_coords
 
 __all__ = [
     "AtLayer",

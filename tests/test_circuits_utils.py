@@ -1,4 +1,5 @@
 """Tests for surface_code.circuits._utils."""
+
 from __future__ import annotations
 
 import stim

@@ -4,11 +4,11 @@ Ported verbatim (with relative imports only) from the ``midout.gen._util`` modul
 the "Inplace Access to the Surface Code Y Basis" codebase (Craig Gidney, 2023).
 """
 
-from typing import List, Callable, Iterable, TypeVar, Any
+from typing import Any, Callable, Iterable, List, TypeVar
 
 import stim
 
-TItem = TypeVar('TItem')
+TItem = TypeVar("TItem")
 
 
 def complex_key(c: complex) -> Any:
@@ -16,9 +16,8 @@ def complex_key(c: complex) -> Any:
 
 
 def sorted_complex(
-        values: Iterable[TItem],
-        *,
-        key: Callable[[TItem], Any] = lambda e: e) -> List[TItem]:
+    values: Iterable[TItem], *, key: Callable[[TItem], Any] = lambda e: e
+) -> List[TItem]:
     return sorted(values, key=lambda e: complex_key(key(e)))
 
 
@@ -27,7 +26,7 @@ def not_nones(vs) -> List[Any]:
 
 
 def stim_circuit_with_transformed_coords(
-        circuit: stim.Circuit, transform: Callable[[complex], complex]
+    circuit: stim.Circuit, transform: Callable[[complex], complex]
 ) -> stim.Circuit:
     """Returns an equivalent circuit, but with the qubit and detector position metadata modified.
     The "position" is assumed to be the first two coordinates. These are mapped to the real and

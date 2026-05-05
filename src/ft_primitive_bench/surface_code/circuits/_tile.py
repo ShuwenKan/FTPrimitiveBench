@@ -1,7 +1,6 @@
 import functools
 from typing import Dict, FrozenSet, Iterable, Iterator, List, Optional, Sequence
 
-
 DATA_DIRECTIONS: tuple[str, ...] = ("UR", "UL", "DR", "DL")
 VALID_SCHEDULE_TYPES = {"X", "Z", "XX", "ZZ"}
 
@@ -21,7 +20,9 @@ class Tile:
             raise ValueError("basis must be 'X' or 'Z'")
         if not isinstance(measurement_qubit, complex):
             raise TypeError("measurement_qubit must be a complex coordinate")
-        if second_measurement_qubit is not None and not isinstance(second_measurement_qubit, complex):
+        if second_measurement_qubit is not None and not isinstance(
+            second_measurement_qubit, complex
+        ):
             raise TypeError("second_measurement_qubit must be a complex coordinate")
 
         unexpected_keys = set(data_qubits) - set(DATA_DIRECTIONS)
@@ -135,8 +136,7 @@ class Patch:
             self._tiles[existing] = tile
 
         self._index_by_measure = {
-            existing_tile.measurement_qubit: i
-            for i, existing_tile in enumerate(self._tiles)
+            existing_tile.measurement_qubit: i for i, existing_tile in enumerate(self._tiles)
         }
 
     def offset(self, offset_x: float, offset_y: float) -> None:
@@ -148,17 +148,13 @@ class Patch:
         for tile in self._tiles:
             tile.measurement_qubit = _shift_complex(tile.measurement_qubit)
             if getattr(tile, "second_measurement_qubit", None) is not None:
-                tile.second_measurement_qubit = _shift_complex(
-                    tile.second_measurement_qubit
-                )
+                tile.second_measurement_qubit = _shift_complex(tile.second_measurement_qubit)
             tile.data_qubits = {
                 d: (_shift_complex(coord) if coord is not None else None)
                 for d, coord in tile.data_qubits.items()
             }
 
-        self._index_by_measure = {
-            tile.measurement_qubit: i for i, tile in enumerate(self._tiles)
-        }
+        self._index_by_measure = {tile.measurement_qubit: i for i, tile in enumerate(self._tiles)}
         self._invalidate_cached_sets()
 
     @functools.cached_property
@@ -177,12 +173,12 @@ class Patch:
     @functools.cached_property
     def measure_x_set(self) -> FrozenSet[complex]:
         """All measurement qubits for X-basis tiles."""
-        return frozenset(t.measurement_qubit for t in self._tiles if t.basis == 'X')
+        return frozenset(t.measurement_qubit for t in self._tiles if t.basis == "X")
 
     @functools.cached_property
     def measure_z_set(self) -> FrozenSet[complex]:
         """All measurement qubits for Z-basis tiles."""
-        return frozenset(t.measurement_qubit for t in self._tiles if t.basis == 'Z')
+        return frozenset(t.measurement_qubit for t in self._tiles if t.basis == "Z")
 
     def _invalidate_cached_sets(self) -> None:
         for attr in ("data_set", "measure_set", "measure_x_set", "measure_z_set"):
@@ -199,7 +195,5 @@ class Patch:
             f"({nx} X-tiles, {nz} Z-tiles), "
             f"{len(self.data_set)} data, {len(self.measure_set)} ancillas."
         )
-        tiles = "\n".join(
-            f"{i:>3}. {str(tile)}" for i, tile in enumerate(self._tiles, start=1)
-        )
+        tiles = "\n".join(f"{i:>3}. {str(tile)}" for i, tile in enumerate(self._tiles, start=1))
         return "\n".join([summary, tiles]) if tiles else summary

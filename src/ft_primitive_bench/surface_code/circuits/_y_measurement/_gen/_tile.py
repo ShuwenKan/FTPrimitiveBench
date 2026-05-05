@@ -5,7 +5,7 @@ of the "Inplace Access to the Surface Code Y Basis" codebase (Craig Gidney, 2023
 """
 
 import functools
-from typing import Iterable, Optional, FrozenSet, Callable
+from typing import Callable, FrozenSet, Iterable, Optional
 
 
 class Tile:
@@ -15,11 +15,13 @@ class Tile:
     each data qubit, and also the measurement ancilla.
     """
 
-    def __init__(self,
-                 *,
-                 bases: str,
-                 measurement_qubit: complex,
-                 ordered_data_qubits: Iterable[Optional[complex]]):
+    def __init__(
+        self,
+        *,
+        bases: str,
+        measurement_qubit: complex,
+        ordered_data_qubits: Iterable[Optional[complex]],
+    ):
         """
         Args:
             bases: Basis of the stabilizer. A string of XYZ characters the same
@@ -39,12 +41,16 @@ class Tile:
             bases *= len(self.ordered_data_qubits)
         self.bases: str = bases
         if len(self.bases) != len(self.ordered_data_qubits):
-            raise ValueError('len(self.bases_2) != len(self.data_qubits_order)')
+            raise ValueError("len(self.bases_2) != len(self.data_qubits_order)")
 
     def __eq__(self, other):
         if not isinstance(other, Tile):
             return False
-        return self.ordered_data_qubits == other.ordered_data_qubits and self.measurement_qubit == other.measurement_qubit and self.bases == other.bases
+        return (
+            self.ordered_data_qubits == other.ordered_data_qubits
+            and self.measurement_qubit == other.measurement_qubit
+            and self.bases == other.bases
+        )
 
     def __ne__(self, other):
         return not (self == other)
@@ -59,10 +65,12 @@ class Tile:
     bases={self.bases!r},
 )"""
 
-    def after_coordinate_transform(self, coord_transform: Callable[[complex], complex]) -> 'Tile':
+    def after_coordinate_transform(self, coord_transform: Callable[[complex], complex]) -> "Tile":
         return Tile(
             bases=self.bases,
-            ordered_data_qubits=[None if d is None else coord_transform(d) for d in self.ordered_data_qubits],
+            ordered_data_qubits=[
+                None if d is None else coord_transform(d) for d in self.ordered_data_qubits
+            ],
             measurement_qubit=coord_transform(self.measurement_qubit),
         )
 

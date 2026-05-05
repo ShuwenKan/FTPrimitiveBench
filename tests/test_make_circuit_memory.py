@@ -1,4 +1,5 @@
 """Tests for surface_code.circuits._make_circuit.memory."""
+
 from __future__ import annotations
 
 import pytest

@@ -4,7 +4,19 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
-from typing import Callable, Dict, FrozenSet, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import stim
 
@@ -110,7 +122,9 @@ class GateDurations:
         return self.one_qubit
 
 
-_DEFAULT_CUSTOM_GATE_DURATIONS = GateDurations(one_qubit=40e-9, two_qubit=120e-9, measurement=200e-9)
+_DEFAULT_CUSTOM_GATE_DURATIONS = GateDurations(
+    one_qubit=40e-9, two_qubit=120e-9, measurement=200e-9
+)
 
 
 @dataclass(frozen=True)
@@ -203,7 +217,9 @@ class RoundIndexedNoiseSpec:
     pair_overrides: Mapping[Tuple[int, int], NoiseParams] = field(default_factory=dict)
     round_overrides: Mapping[int, RoundNoiseParams] = field(default_factory=dict)
     qubit_round_overrides: Mapping[Tuple[int, int], NoiseParams] = field(default_factory=dict)
-    pair_round_overrides: Mapping[Tuple[Tuple[int, int], int], NoiseParams] = field(default_factory=dict)
+    pair_round_overrides: Mapping[Tuple[Tuple[int, int], int], NoiseParams] = field(
+        default_factory=dict
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -331,8 +347,11 @@ def _normalize_instruction_collection(
         return ()
     if isinstance(value, Mapping):
         keys = {str(k).lower() for k in value}
-        if "name" in value or "arg" in value or {"px", "py", "pz"} <= keys or any(
-            term.lower() in keys for term in _PAULI_2Q_ORDER
+        if (
+            "name" in value
+            or "arg" in value
+            or {"px", "py", "pz"} <= keys
+            or any(term.lower() in keys for term in _PAULI_2Q_ORDER)
         ):
             return (_normalize_instruction(value, default_name=default_name),)
     if isinstance(value, str):
@@ -423,10 +442,7 @@ def _normalize_spam_error_mapping(
     if not category_keys:
         basis_map = _basis_flip_map(raw)
         return {"RESET": dict(basis_map), "MEASURE": dict(basis_map)}
-    return {
-        _normalize_spam_category(str(key)): _basis_flip_map(item)
-        for key, item in raw.items()
-    }
+    return {_normalize_spam_category(str(key)): _basis_flip_map(item) for key, item in raw.items()}
 
 
 def _merge_spam_error_mappings(
@@ -436,8 +452,10 @@ def _merge_spam_error_mappings(
     merged = _normalize_spam_error_mapping(base)
     for category, value in _normalize_spam_error_mapping(override).items():
         current = merged.get(category)
-        merged[category] = _basis_flip_map(value) if current is None else _basis_flip_map(
-            _merge_basis_flip_inputs(current, value)
+        merged[category] = (
+            _basis_flip_map(value)
+            if current is None
+            else _basis_flip_map(_merge_basis_flip_inputs(current, value))
         )
     return merged
 
@@ -449,11 +467,17 @@ def _normalize_idle_channel_mapping(value: NamedIdleChannelInput) -> Dict[str, I
         return {"*": value}
     if isinstance(value, Mapping):
         keys = {str(key).lower() for key in value}
-        if "name" in keys or "arg" in keys or {"px", "py", "pz"} <= keys or any(
-            term.lower() in keys for term in _PAULI_2Q_ORDER
+        if (
+            "name" in keys
+            or "arg" in keys
+            or {"px", "py", "pz"} <= keys
+            or any(term.lower() in keys for term in _PAULI_2Q_ORDER)
         ):
             return {"*": value}
-        return {str(key).upper() if str(key).upper() != "DEFAULT" else "*": item for key, item in value.items()}
+        return {
+            str(key).upper() if str(key).upper() != "DEFAULT" else "*": item
+            for key, item in value.items()
+        }
     return {"*": value}
 
 
@@ -465,7 +489,9 @@ def _merge_basis_flip_inputs(base: BasisFlipInput, override: BasisFlipInput) -> 
     return merged
 
 
-def _merge_idle_channel_inputs(base: NamedIdleChannelInput, override: NamedIdleChannelInput) -> NamedIdleChannelInput:
+def _merge_idle_channel_inputs(
+    base: NamedIdleChannelInput, override: NamedIdleChannelInput
+) -> NamedIdleChannelInput:
     if override is None:
         return base
     if base is None:
@@ -519,7 +545,9 @@ class _ResolvedIdleSpec:
 
     def instruction_for(self, idle_duration: float) -> Optional[NoiseInstruction]:
         if self.idle_callable is not None:
-            return _normalize_instruction(self.idle_callable(idle_duration), default_name="DEPOLARIZE1")
+            return _normalize_instruction(
+                self.idle_callable(idle_duration), default_name="DEPOLARIZE1"
+            )
         return self.instruction
 
 
@@ -531,7 +559,9 @@ def _resolve_idle_spec(value: IdleChannelInput) -> _ResolvedIdleSpec:
     return _ResolvedIdleSpec(instruction=_normalize_instruction(value, default_name="DEPOLARIZE1"))
 
 
-def _freeze_idle_mapping_items(value: NamedIdleChannelInput) -> Tuple[Tuple[str, _ResolvedIdleSpec], ...]:
+def _freeze_idle_mapping_items(
+    value: NamedIdleChannelInput,
+) -> Tuple[Tuple[str, _ResolvedIdleSpec], ...]:
     return tuple(
         (str(name).upper(), _resolve_idle_spec(item))
         for name, item in sorted(_normalize_idle_channel_mapping(value).items())
@@ -593,7 +623,9 @@ class _ResolvedQubitParams:
         measure_map = dict(self.measure_spam_error)
         return float(measure_map.get(basis, measure_map.get("Z", 0.0)))
 
-    def idle_instruction_for(self, op_name: str, idle_duration: float) -> Optional[NoiseInstruction]:
+    def idle_instruction_for(
+        self, op_name: str, idle_duration: float
+    ) -> Optional[NoiseInstruction]:
         allow_wildcard = op_name not in MEASUREMENT_OPS and op_name not in RESET_OPS
         idle_spec = _idle_spec_for_op(self.idle_error, op_name, allow_wildcard=allow_wildcard)
         if idle_spec is not None:
@@ -623,7 +655,9 @@ class _ResolvedPairParams:
         value = _lookup_frozen_named_value(self.durations, name)
         return None if value is None else float(value)
 
-    def idle_instruction_for(self, op_name: str, idle_duration: float) -> Optional[NoiseInstruction]:
+    def idle_instruction_for(
+        self, op_name: str, idle_duration: float
+    ) -> Optional[NoiseInstruction]:
         idle_spec = _idle_spec_for_op(self.idle_error, op_name, allow_wildcard=True)
         return None if idle_spec is None else idle_spec.instruction_for(idle_duration)
 
@@ -714,7 +748,9 @@ def _compile_noise_tables(spec: RoundIndexedNoiseSpec) -> _CompiledNoiseTables:
     round_qubit_param_ids: Dict[int, Dict[int, int]] = defaultdict(dict)
     for round_idx, override in spec.round_overrides.items():
         if override.qubits is not None:
-            round_qubit_default_param_ids[int(round_idx)] = intern_qubit(global_noise.merged_with(override.qubits))
+            round_qubit_default_param_ids[int(round_idx)] = intern_qubit(
+                global_noise.merged_with(override.qubits)
+            )
             for qubit, qubit_override in spec.qubit_overrides.items():
                 round_qubit_param_ids[int(round_idx)][int(qubit)] = intern_qubit(
                     global_noise.merged_with(qubit_override).merged_with(override.qubits)
@@ -731,7 +767,9 @@ def _compile_noise_tables(spec: RoundIndexedNoiseSpec) -> _CompiledNoiseTables:
     round_pair_param_ids: Dict[int, Dict[Tuple[int, int], int]] = defaultdict(dict)
     for round_idx, override in spec.round_overrides.items():
         if override.pairs is not None:
-            round_pair_default_param_ids[int(round_idx)] = intern_pair(global_noise.merged_with(override.pairs))
+            round_pair_default_param_ids[int(round_idx)] = intern_pair(
+                global_noise.merged_with(override.pairs)
+            )
             for pair, pair_override in spec.pair_overrides.items():
                 normalized_pair = _normalize_pair_key(pair)
                 round_pair_param_ids[int(round_idx)][normalized_pair] = intern_pair(
@@ -744,9 +782,16 @@ def _compile_noise_tables(spec: RoundIndexedNoiseSpec) -> _CompiledNoiseTables:
         base = base.merged_with(spec.pair_overrides.get(normalized_pair))
         if round_base is not None and round_base.pairs is not None:
             base = base.merged_with(round_base.pairs)
-        round_pair_param_ids[int(round_idx)][normalized_pair] = intern_pair(base.merged_with(override))
+        round_pair_param_ids[int(round_idx)][normalized_pair] = intern_pair(
+            base.merged_with(override)
+        )
 
-    if round_qubit_default_param_ids or round_pair_default_param_ids or round_qubit_param_ids or round_pair_param_ids:
+    if (
+        round_qubit_default_param_ids
+        or round_pair_default_param_ids
+        or round_qubit_param_ids
+        or round_pair_param_ids
+    ):
         mode = "round_overrides"
     elif qubit_param_ids or pair_param_ids:
         mode = "static_overrides"
@@ -763,8 +808,12 @@ def _compile_noise_tables(spec: RoundIndexedNoiseSpec) -> _CompiledNoiseTables:
         pair_param_ids=dict(pair_param_ids),
         round_qubit_default_param_ids=dict(round_qubit_default_param_ids),
         round_pair_default_param_ids=dict(round_pair_default_param_ids),
-        round_qubit_param_ids={round_idx: dict(value) for round_idx, value in round_qubit_param_ids.items()},
-        round_pair_param_ids={round_idx: dict(value) for round_idx, value in round_pair_param_ids.items()},
+        round_qubit_param_ids={
+            round_idx: dict(value) for round_idx, value in round_qubit_param_ids.items()
+        },
+        round_pair_param_ids={
+            round_idx: dict(value) for round_idx, value in round_pair_param_ids.items()
+        },
     )
 
 
@@ -776,8 +825,12 @@ class _CompiledNoiseEngine:
         *,
         gate_durations: GateDurations,
         default_qubit_rates: Optional[PerQubitRates] = None,
-        qubit_rate_overrides: Optional[Mapping[int, Union[PerQubitRates, Mapping[str, object]]]] = None,
-        pair_rate_overrides: Optional[Mapping[Tuple[int, int], Union[TwoQubitNoiseSpec, Mapping[str, object]]]] = None,
+        qubit_rate_overrides: Optional[
+            Mapping[int, Union[PerQubitRates, Mapping[str, object]]]
+        ] = None,
+        pair_rate_overrides: Optional[
+            Mapping[Tuple[int, int], Union[TwoQubitNoiseSpec, Mapping[str, object]]]
+        ] = None,
         two_qubit_noise_overrides: Optional[
             Mapping[
                 Tuple[int, int],
@@ -802,27 +855,35 @@ class _CompiledNoiseEngine:
                 if isinstance(raw_rates, PerQubitRates):
                     self._qubit_rates[qubit] = raw_rates
                 else:
-                    self._qubit_rates[qubit] = self._coerce_rates(raw_rates, fallback=default_qubit_rates)
+                    self._qubit_rates[qubit] = self._coerce_rates(
+                        raw_rates, fallback=default_qubit_rates
+                    )
         elif default_qubit_rates is None:
-            raise ValueError("_CompiledNoiseEngine requires default_qubit_rates or explicit qubit_rate_overrides.")
+            raise ValueError(
+                "_CompiledNoiseEngine requires default_qubit_rates or explicit qubit_rate_overrides."
+            )
 
         self._default_measure_flip = (
-            _basis_flip_map(default_qubit_rates.before_measure) if default_qubit_rates is not None else None
+            _basis_flip_map(default_qubit_rates.before_measure)
+            if default_qubit_rates is not None
+            else None
         )
         self._measure_flip_by_qubit = {
-            q: _basis_flip_map(rates.before_measure)
-            for q, rates in self._qubit_rates.items()
+            q: _basis_flip_map(rates.before_measure) for q, rates in self._qubit_rates.items()
         }
         self._default_reset_flip = (
-            _basis_flip_map(default_qubit_rates.after_reset) if default_qubit_rates is not None else None
+            _basis_flip_map(default_qubit_rates.after_reset)
+            if default_qubit_rates is not None
+            else None
         )
         self._reset_flip_by_qubit = {
-            q: _basis_flip_map(rates.after_reset)
-            for q, rates in self._qubit_rates.items()
+            q: _basis_flip_map(rates.after_reset) for q, rates in self._qubit_rates.items()
         }
 
         self._default_after_1q = (
-            _normalize_instruction_collection(default_qubit_rates.after_1q, default_name="DEPOLARIZE1")
+            _normalize_instruction_collection(
+                default_qubit_rates.after_1q, default_name="DEPOLARIZE1"
+            )
             if default_qubit_rates is not None
             else ()
         )
@@ -832,8 +893,11 @@ class _CompiledNoiseEngine:
             if rates.after_1q is not None
         }
         self._default_idle_instruction = (
-            _normalize_instruction(default_qubit_rates.idle_pauli_channel, default_name="PAULI_CHANNEL_1")
-            if default_qubit_rates is not None and default_qubit_rates.idle_pauli_channel is not None
+            _normalize_instruction(
+                default_qubit_rates.idle_pauli_channel, default_name="PAULI_CHANNEL_1"
+            )
+            if default_qubit_rates is not None
+            and default_qubit_rates.idle_pauli_channel is not None
             else None
         )
         self._idle_instruction_by_qubit = {
@@ -842,18 +906,32 @@ class _CompiledNoiseEngine:
             if rates.idle_pauli_channel is not None
         }
 
-        default_pair_source = default_qubit_rates.after_2q if default_qubit_rates is not None else None
-        self._default_pair_noise = _normalize_instruction_collection(default_pair_source, default_name="DEPOLARIZE2")
+        default_pair_source = (
+            default_qubit_rates.after_2q if default_qubit_rates is not None else None
+        )
+        self._default_pair_noise = _normalize_instruction_collection(
+            default_pair_source, default_name="DEPOLARIZE2"
+        )
         self._pair_noise_specs: Dict[Tuple[int, int], TwoQubitNoiseSpec] = {}
         self._load_pair_specs(pair_rate_overrides or {})
         if two_qubit_noise_overrides:
             self._load_pair_specs(two_qubit_noise_overrides)
 
-        self._gate_rules = {str(name): _normalize_rule(rule) for name, rule in (gate_rules or {}).items()}
-        self._measure_rules = {str(name).upper(): _normalize_rule(rule) for name, rule in (measure_rules or {}).items()}
-        self._reset_rules = {str(name).upper(): _normalize_rule(rule) for name, rule in (reset_rules or {}).items()}
-        self._any_clifford_1q_rule = None if any_clifford_1q_rule is None else _normalize_rule(any_clifford_1q_rule)
-        self._any_clifford_2q_rule = None if any_clifford_2q_rule is None else _normalize_rule(any_clifford_2q_rule)
+        self._gate_rules = {
+            str(name): _normalize_rule(rule) for name, rule in (gate_rules or {}).items()
+        }
+        self._measure_rules = {
+            str(name).upper(): _normalize_rule(rule) for name, rule in (measure_rules or {}).items()
+        }
+        self._reset_rules = {
+            str(name).upper(): _normalize_rule(rule) for name, rule in (reset_rules or {}).items()
+        }
+        self._any_clifford_1q_rule = (
+            None if any_clifford_1q_rule is None else _normalize_rule(any_clifford_1q_rule)
+        )
+        self._any_clifford_2q_rule = (
+            None if any_clifford_2q_rule is None else _normalize_rule(any_clifford_2q_rule)
+        )
 
     @classmethod
     def from_scalar_rates(
@@ -910,7 +988,9 @@ class _CompiledNoiseEngine:
         )
 
     @staticmethod
-    def _coerce_rates(data: Mapping[str, object], *, fallback: Optional[PerQubitRates]) -> PerQubitRates:
+    def _coerce_rates(
+        data: Mapping[str, object], *, fallback: Optional[PerQubitRates]
+    ) -> PerQubitRates:
         def pick(key: str, default: Optional[object] = None) -> object:
             if key in data:
                 return data[key]
@@ -943,7 +1023,9 @@ class _CompiledNoiseEngine:
                 self._pair_noise_specs[pair] = raw_value
                 continue
             if isinstance(raw_value, Mapping) and "instructions" in raw_value:
-                instructions = _normalize_instruction_collection(raw_value.get("instructions"), default_name="DEPOLARIZE2")
+                instructions = _normalize_instruction_collection(
+                    raw_value.get("instructions"), default_name="DEPOLARIZE2"
+                )
                 duration_raw = raw_value.get("duration")
                 self._pair_noise_specs[pair] = TwoQubitNoiseSpec(
                     instructions=instructions,
@@ -951,7 +1033,9 @@ class _CompiledNoiseEngine:
                 )
                 continue
             self._pair_noise_specs[pair] = TwoQubitNoiseSpec(
-                instructions=_normalize_instruction_collection(raw_value, default_name="DEPOLARIZE2")
+                instructions=_normalize_instruction_collection(
+                    raw_value, default_name="DEPOLARIZE2"
+                )
             )
 
     def _rates_for_qubit(self, qubit: int) -> PerQubitRates:
@@ -979,7 +1063,9 @@ class _CompiledNoiseEngine:
         for moment in _iter_split_op_moments(circuit, immune_qubits=immune_qubits):
             if isinstance(moment, stim.CircuitRepeatBlock):
                 if moment_rounds is not None:
-                    raise ValueError("Explicit moment_rounds are not supported when REPEAT blocks are present.")
+                    raise ValueError(
+                        "Explicit moment_rounds are not supported when REPEAT blocks are present."
+                    )
                 compiled_blocks.append(
                     CompiledRepeatBlock(
                         repeat_count=moment.repeat_count,
@@ -1009,7 +1095,9 @@ class _CompiledNoiseEngine:
             immune_qubits=frozenset(immune_qubits),
         )
 
-    def _compile_moment(self, ops: List[stim.CircuitInstruction], *, explicit_round: Optional[int]) -> CompiledMoment:
+    def _compile_moment(
+        self, ops: List[stim.CircuitInstruction], *, explicit_round: Optional[int]
+    ) -> CompiledMoment:
         compiled_ops: List[CompiledOp] = []
         collapse_qubits: List[int] = []
         clifford_qubits: List[int] = []
@@ -1023,8 +1111,12 @@ class _CompiledNoiseEngine:
             targets = tuple(
                 target.value
                 for target in op.targets_copy()
-                if not target.is_combiner and (
-                    target.is_qubit_target or target.is_x_target or target.is_y_target or target.is_z_target
+                if not target.is_combiner
+                and (
+                    target.is_qubit_target
+                    or target.is_x_target
+                    or target.is_y_target
+                    or target.is_z_target
                 )
             )
             pair_targets: Tuple[Tuple[int, int], ...] = ()
@@ -1033,8 +1125,12 @@ class _CompiledNoiseEngine:
                     _normalize_pair_key((targets[index], targets[index + 1]))
                     for index in range(0, len(targets), 2)
                 )
-            measurement_basis = _measure_basis(op) if op_type in (JUST_MEASURE_1Q, MEASURE_RESET_1Q, MPP) else None
-            reset_basis = self._reset_basis(op.name) if op_type in (JUST_RESET_1Q, MEASURE_RESET_1Q) else None
+            measurement_basis = (
+                _measure_basis(op) if op_type in (JUST_MEASURE_1Q, MEASURE_RESET_1Q, MPP) else None
+            )
+            reset_basis = (
+                self._reset_basis(op.name) if op_type in (JUST_RESET_1Q, MEASURE_RESET_1Q) else None
+            )
             compiled_ops.append(
                 CompiledOp(
                     instruction=op,
@@ -1050,7 +1146,11 @@ class _CompiledNoiseEngine:
                 detector_round = self._round_from_detector(op)
                 if detector_round is not None:
                     advance = detector_round + 1
-                    detector_round_advance = advance if detector_round_advance is None else max(detector_round_advance, advance)
+                    detector_round_advance = (
+                        advance
+                        if detector_round_advance is None
+                        else max(detector_round_advance, advance)
+                    )
 
             if op_type == ANNOTATION:
                 continue
@@ -1136,7 +1236,9 @@ class _CompiledNoiseEngine:
                 out.append("TICK", [], [])
 
             if isinstance(block, CompiledRepeatBlock):
-                out.append(stim.CircuitRepeatBlock(block.repeat_count, self.apply_compiled(block.body)))
+                out.append(
+                    stim.CircuitRepeatBlock(block.repeat_count, self.apply_compiled(block.body))
+                )
             else:
                 current_round = self._append_compiled_moment(
                     moment=block,
@@ -1211,7 +1313,11 @@ class _CompiledNoiseEngine:
         )
 
         if moment.explicit_round is not None:
-            return current_round if moment.detector_round_advance is None else max(current_round, moment.detector_round_advance)
+            return (
+                current_round
+                if moment.detector_round_advance is None
+                else max(current_round, moment.detector_round_advance)
+            )
         if moment.detector_round_advance is not None:
             return max(round_idx, moment.detector_round_advance)
         return round_idx
@@ -1278,7 +1384,9 @@ class _CompiledNoiseEngine:
             a, b = pair
             if a in immune_qubits or b in immune_qubits:
                 continue
-            pair_spec = self._pair_noise_specs.get(pair, TwoQubitNoiseSpec(instructions=self._default_pair_noise))
+            pair_spec = self._pair_noise_specs.get(
+                pair, TwoQubitNoiseSpec(instructions=self._default_pair_noise)
+            )
             for instruction in pair_spec.instructions:
                 if not self._is_zero_noise(instruction.arg):
                     self._append_noise(after_buf, instruction.name, instruction.arg, [a, b])
@@ -1345,7 +1453,9 @@ class _CompiledNoiseEngine:
             if not self._is_zero_noise(instruction.arg):
                 grouped[(instruction.name, instruction.arg)].append(qubit)
 
-        for (name, arg), targets in sorted(grouped.items(), key=lambda item: (item[0][0], item[0][1])):
+        for (name, arg), targets in sorted(
+            grouped.items(), key=lambda item: (item[0][0], item[0][1])
+        ):
             self._emit_instruction(out, name, targets, arg)
 
     def _rules_for_entry(self, entry: CompiledOp) -> Tuple[NoiseRule, ...]:
@@ -1360,7 +1470,9 @@ class _CompiledNoiseEngine:
                 rules.append(measure_rule)
         if entry.op_type in (JUST_RESET_1Q, MEASURE_RESET_1Q):
             reset_key = (entry.reset_basis or "Z").upper()
-            reset_rule = self._reset_rules.get(reset_key) or self._reset_rules.get(entry.instruction.name.upper())
+            reset_rule = self._reset_rules.get(reset_key) or self._reset_rules.get(
+                entry.instruction.name.upper()
+            )
             if reset_rule is not None:
                 rules.append(reset_rule)
         if entry.op_type == CLIFFORD_1Q and self._any_clifford_1q_rule is not None:
@@ -1389,7 +1501,9 @@ class _CompiledNoiseEngine:
             if measure_rule is not None:
                 rules.append(measure_rule)
         if op_type in (JUST_RESET_1Q, MEASURE_RESET_1Q):
-            reset_rule = self._reset_rules.get((reset_basis or "Z").upper()) or self._reset_rules.get(op_name.upper())
+            reset_rule = self._reset_rules.get(
+                (reset_basis or "Z").upper()
+            ) or self._reset_rules.get(op_name.upper())
             if reset_rule is not None:
                 rules.append(reset_rule)
         if op_type == CLIFFORD_1Q and self._any_clifford_1q_rule is not None:
@@ -1407,7 +1521,9 @@ class _CompiledNoiseEngine:
             return self._gate_durations.for_operation(op_name, pair=pair)
         return self._gate_durations.for_operation(op_name)
 
-    def _flip_result_for_entry(self, entry: CompiledOp, rules: Tuple[NoiseRule, ...], round_idx: int) -> float:
+    def _flip_result_for_entry(
+        self, entry: CompiledOp, rules: Tuple[NoiseRule, ...], round_idx: int
+    ) -> float:
         for rule in rules:
             if rule.flip_result is not None:
                 return float(rule.flip_result)
@@ -1437,7 +1553,9 @@ class _CompiledNoiseEngine:
     ) -> None:
         for rule in rules:
             for instruction in rule.before:
-                for targets, _ in self._instruction_target_groups(entry, instruction.name, immune_qubits):
+                for targets, _ in self._instruction_target_groups(
+                    entry, instruction.name, immune_qubits
+                ):
                     if not self._is_zero_noise(instruction.arg):
                         self._emit_instruction(out, instruction.name, targets, instruction.arg)
 
@@ -1451,7 +1569,9 @@ class _CompiledNoiseEngine:
     ) -> None:
         for rule in rules:
             for instruction in rule.after:
-                for targets, _ in self._instruction_target_groups(entry, instruction.name, immune_qubits):
+                for targets, _ in self._instruction_target_groups(
+                    entry, instruction.name, immune_qubits
+                ):
                     if not self._is_zero_noise(instruction.arg):
                         self._append_noise(after_buf, instruction.name, instruction.arg, targets)
 
@@ -1468,7 +1588,9 @@ class _CompiledNoiseEngine:
                         continue
                     yield [pair[0], pair[1]], pair
                 return
-            if len(entry.targets) == 2 and not any(qubit in immune_qubits for qubit in entry.targets):
+            if len(entry.targets) == 2 and not any(
+                qubit in immune_qubits for qubit in entry.targets
+            ):
                 pair = _normalize_pair_key((entry.targets[0], entry.targets[1]))
                 yield [pair[0], pair[1]], pair
                 return
@@ -1512,7 +1634,9 @@ class _CompiledNoiseEngine:
         arg: NoiseArg,
         targets: List[int],
     ) -> None:
-        after_buf[(op_name, arg)].append(op_name, targets, list(arg) if isinstance(arg, tuple) else arg)
+        after_buf[(op_name, arg)].append(
+            op_name, targets, list(arg) if isinstance(arg, tuple) else arg
+        )
 
     def summary(self) -> str:
         mode = "uniform" if self._default_qubit_rates is not None else "strict"
@@ -1549,7 +1673,11 @@ class _CompiledNoiseEngine:
         if isinstance(value, list):
             return "[" + ", ".join(_CompiledNoiseEngine._fmt(v) for v in value) + "]"
         if isinstance(value, dict):
-            return "{" + ", ".join(f"{k}: {_CompiledNoiseEngine._fmt(v)}" for k, v in value.items()) + "}"
+            return (
+                "{"
+                + ", ".join(f"{k}: {_CompiledNoiseEngine._fmt(v)}" for k, v in value.items())
+                + "}"
+            )
         return repr(value)
 
 
@@ -1593,7 +1721,8 @@ class NoiseModel(_CompiledNoiseEngine):
 
     def summary(self) -> str:
         round_override_count = len(
-            set(self._tables.round_qubit_default_param_ids) | set(self._tables.round_pair_default_param_ids)
+            set(self._tables.round_qubit_default_param_ids)
+            | set(self._tables.round_pair_default_param_ids)
         )
         return (
             "NoiseModel("
@@ -1651,7 +1780,9 @@ class NoiseModel(_CompiledNoiseEngine):
         param_id = self._tables.qubit_param_ids.get(int(qubit), self._tables.default_qubit_param_id)
         return self._tables.qubit_params_pool[param_id]
 
-    def _pair_params_for(self, pair: Tuple[int, int], round_idx: Optional[int]) -> _ResolvedPairParams:
+    def _pair_params_for(
+        self, pair: Tuple[int, int], round_idx: Optional[int]
+    ) -> _ResolvedPairParams:
         normalized_pair = _normalize_pair_key(pair)
         if self.mode == "global_only":
             return self._tables.pair_params_pool[self._tables.default_pair_param_id]
@@ -1666,7 +1797,9 @@ class NoiseModel(_CompiledNoiseEngine):
                 return self._tables.pair_params_pool[
                     self._tables.pair_param_ids.get(normalized_pair, default_param_id)
                 ]
-        param_id = self._tables.pair_param_ids.get(normalized_pair, self._tables.default_pair_param_id)
+        param_id = self._tables.pair_param_ids.get(
+            normalized_pair, self._tables.default_pair_param_id
+        )
         return self._tables.pair_params_pool[param_id]
 
     def _duration_for_operation(
@@ -1690,7 +1823,8 @@ class NoiseModel(_CompiledNoiseEngine):
         duration_values = [
             duration
             for qubit in targets
-            if (duration := self._qubit_params_for(qubit, round_idx).duration_for(op_name)) is not None
+            if (duration := self._qubit_params_for(qubit, round_idx).duration_for(op_name))
+            is not None
         ]
         if duration_values:
             return max(duration_values)
@@ -1706,7 +1840,9 @@ class NoiseModel(_CompiledNoiseEngine):
         for qubit in entry.targets:
             if qubit in immune_qubits:
                 continue
-            for instruction in self._qubit_params_for(qubit, round_idx).gate_instructions_for(entry.instruction.name):
+            for instruction in self._qubit_params_for(qubit, round_idx).gate_instructions_for(
+                entry.instruction.name
+            ):
                 if not self._is_zero_noise(instruction.arg):
                     self._append_noise(after_buf, instruction.name, instruction.arg, [qubit])
 
@@ -1721,7 +1857,9 @@ class NoiseModel(_CompiledNoiseEngine):
             a, b = pair
             if a in immune_qubits or b in immune_qubits:
                 continue
-            for instruction in self._pair_params_for(pair, round_idx).gate_instructions_for(entry.instruction.name):
+            for instruction in self._pair_params_for(pair, round_idx).gate_instructions_for(
+                entry.instruction.name
+            ):
                 if not self._is_zero_noise(instruction.arg):
                     self._append_noise(after_buf, instruction.name, instruction.arg, [a, b])
 
@@ -1742,14 +1880,19 @@ class NoiseModel(_CompiledNoiseEngine):
         op_name = "Z_ERROR" if basis == "X" else "Y_ERROR" if basis == "Y" else "X_ERROR"
         self._append_noise(after_buf, op_name, prob, [qubit])
 
-    def _flip_result_for_entry(self, entry: CompiledOp, rules: Tuple[NoiseRule, ...], round_idx: int) -> float:
+    def _flip_result_for_entry(
+        self, entry: CompiledOp, rules: Tuple[NoiseRule, ...], round_idx: int
+    ) -> float:
         for rule in rules:
             if rule.flip_result is not None:
                 return float(rule.flip_result)
         if not entry.targets:
             return 0.0
         basis = (entry.measurement_basis or "Z").upper()
-        return max(self._qubit_params_for(qubit, round_idx).measure_probability(basis) for qubit in entry.targets)
+        return max(
+            self._qubit_params_for(qubit, round_idx).measure_probability(basis)
+            for qubit in entry.targets
+        )
 
     def _append_idle_error(
         self,
@@ -1773,13 +1916,17 @@ class NoiseModel(_CompiledNoiseEngine):
             if entry.pair_targets:
                 for pair in entry.pair_targets:
                     pair_params = self._pair_params_for(pair, round_idx)
-                    candidate = pair_params.idle_instruction_for(entry.instruction.name, moment.duration)
+                    candidate = pair_params.idle_instruction_for(
+                        entry.instruction.name, moment.duration
+                    )
                     if candidate is not None and not self._is_zero_noise(candidate.arg):
                         nonactive_candidates.append(candidate)
                     for qubit in pair:
                         if qubit in immune_qubits:
                             continue
-                        active_durations[qubit] = max(active_durations.get(qubit, 0.0), entry.duration)
+                        active_durations[qubit] = max(
+                            active_durations.get(qubit, 0.0), entry.duration
+                        )
                         pair_idle_sources[qubit] = (entry.instruction.name, pair)
                 continue
 
@@ -1788,7 +1935,9 @@ class NoiseModel(_CompiledNoiseEngine):
                     continue
                 active_durations[qubit] = max(active_durations.get(qubit, 0.0), entry.duration)
                 qubit_idle_sources[qubit] = (entry.instruction.name, qubit)
-                candidate = self._qubit_params_for(qubit, round_idx).idle_instruction_for(entry.instruction.name, moment.duration)
+                candidate = self._qubit_params_for(qubit, round_idx).idle_instruction_for(
+                    entry.instruction.name, moment.duration
+                )
                 if candidate is not None and not self._is_zero_noise(candidate.arg):
                     nonactive_candidates.append(candidate)
 
@@ -1805,10 +1954,14 @@ class NoiseModel(_CompiledNoiseEngine):
                 continue
             if qubit in pair_idle_sources:
                 op_name, pair = pair_idle_sources[qubit]
-                instruction = self._pair_params_for(pair, round_idx).idle_instruction_for(op_name, idle_duration)
+                instruction = self._pair_params_for(pair, round_idx).idle_instruction_for(
+                    op_name, idle_duration
+                )
             elif qubit in qubit_idle_sources:
                 op_name, source_qubit = qubit_idle_sources[qubit]
-                instruction = self._qubit_params_for(source_qubit, round_idx).idle_instruction_for(op_name, idle_duration)
+                instruction = self._qubit_params_for(source_qubit, round_idx).idle_instruction_for(
+                    op_name, idle_duration
+                )
             else:
                 # Fully idle in this moment. When the qubit has a round-
                 # specific override (qubit_round_overrides or round_overrides.
@@ -1823,7 +1976,8 @@ class NoiseModel(_CompiledNoiseEngine):
                 has_round_specific = (
                     round_idx is not None
                     and self.mode == "round_overrides"
-                    and self._tables.round_qubit_param_ids.get(int(round_idx), {}).get(int(qubit)) is not None
+                    and self._tables.round_qubit_param_ids.get(int(round_idx), {}).get(int(qubit))
+                    is not None
                 )
                 if has_round_specific:
                     instruction = qubit_params.idle_instruction_for("*", idle_duration)
@@ -1836,7 +1990,9 @@ class NoiseModel(_CompiledNoiseEngine):
             if instruction is not None and not self._is_zero_noise(instruction.arg):
                 grouped[(instruction.name, instruction.arg)].append(qubit)
 
-        for (name, arg), targets in sorted(grouped.items(), key=lambda item: (item[0][0], item[0][1])):
+        for (name, arg), targets in sorted(
+            grouped.items(), key=lambda item: (item[0][0], item[0][1])
+        ):
             self._emit_instruction(out, name, targets, arg)
 
 
@@ -1937,8 +2093,12 @@ def custom(
             qubit_overrides=_convert(qubit_overrides, "qubit_overrides", _as_noise_params),
             pair_overrides=_convert(pair_overrides, "pair_overrides", _as_noise_params),
             round_overrides=_convert(round_overrides, "round_overrides", _as_round_noise_params),
-            qubit_round_overrides=_convert(qubit_round_overrides, "qubit_round_overrides", _as_noise_params),
-            pair_round_overrides=_convert(pair_round_overrides, "pair_round_overrides", _as_noise_params),
+            qubit_round_overrides=_convert(
+                qubit_round_overrides, "qubit_round_overrides", _as_noise_params
+            ),
+            pair_round_overrides=_convert(
+                pair_round_overrides, "pair_round_overrides", _as_noise_params
+            ),
         )
 
     return NoiseModel(spec=final_spec, gate_durations=gate_durations, verbose=verbose)
@@ -1982,23 +2142,20 @@ def infer_moment_rounds(
     moments: List[List[stim.CircuitInstruction]] = []
     for moment in _iter_split_op_moments(circuit.flattened(), immune_qubits=immune):
         if isinstance(moment, stim.CircuitRepeatBlock):
-            raise ValueError("infer_moment_rounds expects a flattened circuit without REPEAT blocks.")
+            raise ValueError(
+                "infer_moment_rounds expects a flattened circuit without REPEAT blocks."
+            )
         moments.append(list(moment))
 
     is_annotation_only = [
-        len(m) == 0 or all(OP_TYPES.get(op.name) == ANNOTATION for op in m)
-        for m in moments
+        len(m) == 0 or all(OP_TYPES.get(op.name) == ANNOTATION for op in m) for m in moments
     ]
     has_measurement = [
-        any(
-            OP_TYPES.get(op.name) in (JUST_MEASURE_1Q, MEASURE_RESET_1Q, MPP)
-            for op in m
-        )
+        any(OP_TYPES.get(op.name) in (JUST_MEASURE_1Q, MEASURE_RESET_1Q, MPP) for op in m)
         for m in moments
     ]
     has_reset = [
-        any(OP_TYPES.get(op.name) in (JUST_RESET_1Q, MEASURE_RESET_1Q) for op in m)
-        for m in moments
+        any(OP_TYPES.get(op.name) in (JUST_RESET_1Q, MEASURE_RESET_1Q) for op in m) for m in moments
     ]
 
     # Pass 1: assign rounds to non-annotation-only moments.
@@ -2125,11 +2282,7 @@ def strip_noise_channels(
                 continue
             if op.name in drop_names:
                 continue
-            if (
-                strip_measurement_flips
-                and op.name in flip_carrying
-                and op.gate_args_copy()
-            ):
+            if strip_measurement_flips and op.name in flip_carrying and op.gate_args_copy():
                 sink.append(stim.CircuitInstruction(op.name, op.targets_copy(), []))
                 continue
             sink.append(op)

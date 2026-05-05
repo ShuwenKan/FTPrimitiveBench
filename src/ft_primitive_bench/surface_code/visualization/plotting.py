@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import math
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
 
 from ..circuits._tile import Patch, Tile
+
+if TYPE_CHECKING:  # pragma: no cover
+    import matplotlib  # noqa: F401
 
 
 def _iter_qubit_entries(entry):
@@ -36,9 +39,7 @@ def _basis_color(basis: str) -> str:
 
 
 def _basis_node_color(basis: str) -> str:
-    return {"X": X_NODE_COLOR, "Z": Z_NODE_COLOR, "Y": Y_NODE_COLOR}.get(
-        basis.upper(), "#444444"
-    )
+    return {"X": X_NODE_COLOR, "Z": Z_NODE_COLOR, "Y": Y_NODE_COLOR}.get(basis.upper(), "#444444")
 
 
 def plot_patch(
@@ -270,21 +271,33 @@ def plot_patch(
             LegendPatch(facecolor=X_COLOR, edgecolor=X_COLOR, alpha=alpha, label="X stabilizer"),
             LegendPatch(facecolor=Z_COLOR, edgecolor=Z_COLOR, alpha=alpha, label="Z stabilizer"),
             Line2D(
-                [0], [0],
-                marker="o", linestyle="",
-                markerfacecolor=DATA_FILL, markeredgecolor=DATA_EDGE, markersize=8,
+                [0],
+                [0],
+                marker="o",
+                linestyle="",
+                markerfacecolor=DATA_FILL,
+                markeredgecolor=DATA_EDGE,
+                markersize=8,
                 label="data",
             ),
             Line2D(
-                [0], [0],
-                marker="o", linestyle="",
-                markerfacecolor=X_NODE_COLOR, markeredgecolor="white", markersize=8,
+                [0],
+                [0],
+                marker="o",
+                linestyle="",
+                markerfacecolor=X_NODE_COLOR,
+                markeredgecolor="white",
+                markersize=8,
                 label="X ancilla",
             ),
             Line2D(
-                [0], [0],
-                marker="o", linestyle="",
-                markerfacecolor=Z_NODE_COLOR, markeredgecolor="white", markersize=8,
+                [0],
+                [0],
+                marker="o",
+                linestyle="",
+                markerfacecolor=Z_NODE_COLOR,
+                markeredgecolor="white",
+                markersize=8,
                 label="Z ancilla",
             ),
         ]

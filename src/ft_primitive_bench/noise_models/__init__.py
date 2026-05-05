@@ -10,11 +10,12 @@ Public API
 - ``NoiseModel`` — engine class; call ``model.noisy_circuit(clean)``.
 - ``strip_noise_channels``, ``infer_moment_rounds``, ``idle_pauli_channel_from_T1T2``.
 """
+
 from .hardware_noise import (
     CompiledCircuit,
     NoiseModel,
-    infer_moment_rounds,
     idle_pauli_channel_from_T1T2,
+    infer_moment_rounds,
     strip_noise_channels,
 )
 from .noise_profile import Coherence, NoiseProfile
@@ -38,14 +39,12 @@ __all__ = [
     "ConfiguredNoiseModel",
     "SampledFactorSnapshot",
     "CompiledCircuit",
-
     # Factories
     "noise_model",
     "uniform_depolarizing",
     "pauli_biased",
     "measurement_biased",
     "nonuniform",
-
     # Auxiliary helpers
     "infer_moment_rounds",
     "idle_pauli_channel_from_T1T2",

@@ -9,14 +9,13 @@ module imports cleanly under modern numpy.
 """
 
 import collections
-from typing import Iterable, Tuple, Dict, List, Set, DefaultDict
+from typing import DefaultDict, Dict, Iterable, List, Set, Tuple
 
 import numpy as np
 import stim
 
-from ._flow import Flow
 from ._chunk import Chunk
-
+from ._flow import Flow
 
 FLIP_REV_SET = {
     "CX",
@@ -63,6 +62,7 @@ REV_DICT = {
     "TICK": "TICK",
 }
 
+
 class FlowStabilizerVerifier:
     def __init__(self, next_measurement: int, q2i: Dict[complex, int], flows: Iterable[Flow]):
         self.flows: Tuple[Flow, ...] = tuple(flows)
@@ -80,9 +80,9 @@ class FlowStabilizerVerifier:
             for m in flow.measurement_indices:
                 self.i2m[m].append(k)
             for q, p in flow.end.qubits.items():
-                assert p == 'X' or p == 'Y' or p == 'Z'
-                self.xs[q2i[q], k] = p == 'X' or p == 'Y'
-                self.zs[q2i[q], k] = p == 'Z' or p == 'Y'
+                assert p == "X" or p == "Y" or p == "Z"
+                self.xs[q2i[q], k] = p == "X" or p == "Y"
+                self.zs[q2i[q], k] = p == "Z" or p == "Y"
 
     def fail_if(self, mask: np.ndarray, msg: str):
         if np.any(mask):
@@ -97,8 +97,8 @@ class FlowStabilizerVerifier:
             x = self.xs[q, k]
             z = self.zs[q, k]
             if x or z:
-                terms.append('_XZY'[x + z*2] + repr(i2q[q]))
-        return '*'.join(terms)
+                terms.append("_XZY"[x + z * 2] + repr(i2q[q]))
+        return "*".join(terms)
 
     def fail(self, k: int, msg: str):
         raise ValueError(f"{msg} for flow {self.flows[k]} with current value {self.pauli_terms(k)}")
@@ -106,16 +106,16 @@ class FlowStabilizerVerifier:
     def finish(self):
         for k in range(len(self.flows)):
             for q, p in self.flows[k].start.qubits.items():
-                assert p == 'X' or p == 'Y' or p == 'Z'
-                self.xs[self.q2i[q], k] ^= p == 'X' or p == 'Y'
-                self.zs[self.q2i[q], k] ^= p == 'Z' or p == 'Y'
+                assert p == "X" or p == "Y" or p == "Z"
+                self.xs[self.q2i[q], k] ^= p == "X" or p == "Y"
+                self.zs[self.q2i[q], k] ^= p == "Z" or p == "Y"
         if np.any(self.xs) or np.any(self.zs):
             for k in range(len(self.flows)):
                 if np.any(self.xs[:, k]) or np.any(self.zs[:, k]):
                     self.fail(k, "Mismatch at start")
 
     @staticmethod
-    def verify(chunk: 'Chunk') -> 'FlowStabilizerVerifier':
+    def verify(chunk: "Chunk") -> "FlowStabilizerVerifier":
         verifier = FlowStabilizerVerifier(
             q2i=chunk.q2i,
             flows=chunk.flows,
@@ -127,7 +127,7 @@ class FlowStabilizerVerifier:
         return verifier
 
     @staticmethod
-    def invert(chunk: 'Chunk') -> Chunk:
+    def invert(chunk: "Chunk") -> Chunk:
         v = FlowStabilizerVerifier.verify(chunk)
         measurement_to_flow_indices: DefaultDict[int, List[int]] = collections.defaultdict(list)
         for k, flow in enumerate(chunk.flows):
@@ -150,7 +150,9 @@ class FlowStabilizerVerifier:
                 ]
                 rev_circuit.append(inst.name, new_targets, inst.gate_args_copy())
             elif inst.name in REV_DICT:
-                rev_circuit.append(REV_DICT[inst.name], inst.targets_copy()[::-1], inst.gate_args_copy())
+                rev_circuit.append(
+                    REV_DICT[inst.name], inst.targets_copy()[::-1], inst.gate_args_copy()
+                )
             elif inst.name in ["R", "RX", "RY"]:
                 ts = inst.targets_copy()[::-1]
                 rev_circuit.append(inst.name.replace("R", "M"), ts, inst.gate_args_copy())
@@ -161,7 +163,10 @@ class FlowStabilizerVerifier:
                     reset_index += 1
             elif inst.name in ["M", "MX", "MY"]:
                 ts = inst.targets_copy()[::-1]
-                if all(old_measure_index - k - 1 in v.measurement_to_can_be_destructive for k in range(len(ts))):
+                if all(
+                    old_measure_index - k - 1 in v.measurement_to_can_be_destructive
+                    for k in range(len(ts))
+                ):
                     rev_circuit.append(inst.name.replace("M", "R"), ts, inst.gate_args_copy())
                     old_measure_index -= len(ts)
                 else:
@@ -171,10 +176,10 @@ class FlowStabilizerVerifier:
                             new_flow_measurements[f].append(new_measure_index)
                         old_measure_index -= 1
                         new_measure_index += 1
-            elif inst.name == 'QUBIT_COORDS':
+            elif inst.name == "QUBIT_COORDS":
                 header.append(inst)
             else:
-                raise NotImplementedError(f'{inst=}')
+                raise NotImplementedError(f"{inst=}")
 
         return Chunk(
             circuit=header + rev_circuit,
@@ -194,38 +199,38 @@ class FlowStabilizerVerifier:
         )
 
     def rev_apply(self, inst: stim.CircuitInstruction):
-        if inst.name == 'H' or inst.name == 'SQRT_Y' or inst.name == "SQRT_Y_DAG":
+        if inst.name == "H" or inst.name == "SQRT_Y" or inst.name == "SQRT_Y_DAG":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
                 tmp = self.xs[q].copy()
                 self.xs[q, :] = self.zs[q]
                 self.zs[q, :] = tmp
-        elif inst.name == 'I' or inst.name == 'Z' or inst.name == 'X' or inst.name == 'Y':
+        elif inst.name == "I" or inst.name == "Z" or inst.name == "X" or inst.name == "Y":
             pass
-        elif inst.name == 'S' or inst.name == 'S_DAG' or inst.name == 'H_XY':
+        elif inst.name == "S" or inst.name == "S_DAG" or inst.name == "H_XY":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
                 self.zs[q, :] ^= self.xs[q]
-        elif inst.name == 'SQRT_X' or inst.name == 'SQRT_X_DAG' or inst.name == 'H_YZ':
+        elif inst.name == "SQRT_X" or inst.name == "SQRT_X_DAG" or inst.name == "H_YZ":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
                 self.xs[q, :] ^= self.zs[q]
-        elif inst.name == 'C_XYZ':
+        elif inst.name == "C_XYZ":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
                 self.zs[q, :] ^= self.xs[q]
                 self.xs[q, :] ^= self.zs[q]
-        elif inst.name == 'C_ZYX':
+        elif inst.name == "C_ZYX":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
                 self.xs[q, :] ^= self.zs[q]
                 self.zs[q, :] ^= self.xs[q]
-        elif inst.name == 'RY':
+        elif inst.name == "RY":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
@@ -236,7 +241,7 @@ class FlowStabilizerVerifier:
                 self.reset_index += 1
                 self.xs[q, :] = 0
                 self.zs[q, :] = 0
-        elif inst.name == 'RX':
+        elif inst.name == "RX":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
@@ -246,7 +251,7 @@ class FlowStabilizerVerifier:
                         self.reset_to_flow_indices[self.reset_index].append(k)
                 self.reset_index += 1
                 self.xs[q, :] = 0
-        elif inst.name == 'R':
+        elif inst.name == "R":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
@@ -256,7 +261,7 @@ class FlowStabilizerVerifier:
                         self.reset_to_flow_indices[self.reset_index].append(k)
                 self.reset_index += 1
                 self.zs[q, :] = 0
-        elif inst.name == 'M':
+        elif inst.name == "M":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
@@ -267,7 +272,7 @@ class FlowStabilizerVerifier:
                     self.measurement_to_can_be_destructive.add(m)
                 for s in self.i2m[m]:
                     self.zs[q, s] ^= True
-        elif inst.name == 'MY':
+        elif inst.name == "MY":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
@@ -279,7 +284,7 @@ class FlowStabilizerVerifier:
                 for s in self.i2m[m]:
                     self.xs[q, s] ^= True
                     self.zs[q, s] ^= True
-        elif inst.name == 'MX':
+        elif inst.name == "MX":
             for t in inst.targets_copy()[::-1]:
                 assert t.is_qubit_target
                 q = t.value
@@ -290,7 +295,7 @@ class FlowStabilizerVerifier:
                     self.measurement_to_can_be_destructive.add(m)
                 for s in self.i2m[m]:
                     self.xs[q, s] ^= True
-        elif inst.name == 'XCZ':
+        elif inst.name == "XCZ":
             ts = inst.targets_copy()
             for k in range(0, len(ts), 2)[::-1]:
                 t1 = ts[k]
@@ -301,7 +306,7 @@ class FlowStabilizerVerifier:
                 q2 = t2.value
                 self.xs[q1] ^= self.xs[q2]
                 self.zs[q2] ^= self.zs[q1]
-        elif inst.name == 'CX':
+        elif inst.name == "CX":
             ts = inst.targets_copy()
             for k in range(0, len(ts), 2)[::-1]:
                 t1 = ts[k]
@@ -312,7 +317,7 @@ class FlowStabilizerVerifier:
                 q2 = t2.value
                 self.xs[q2] ^= self.xs[q1]
                 self.zs[q1] ^= self.zs[q2]
-        elif inst.name == 'CZ':
+        elif inst.name == "CZ":
             ts = inst.targets_copy()
             for k in range(0, len(ts), 2)[::-1]:
                 t1 = ts[k]
@@ -323,12 +328,12 @@ class FlowStabilizerVerifier:
                 q2 = t2.value
                 self.zs[q2] ^= self.xs[q1]
                 self.zs[q1] ^= self.xs[q2]
-        elif inst.name == 'CY' or inst.name == 'YCZ':
+        elif inst.name == "CY" or inst.name == "YCZ":
             ts = inst.targets_copy()
             for k in range(0, len(ts), 2)[::-1]:
                 t1 = ts[k]
                 t2 = ts[k + 1]
-                if inst.name == 'YCZ':
+                if inst.name == "YCZ":
                     t1, t2 = t2, t1
                 assert t1.is_qubit_target
                 assert t2.is_qubit_target
@@ -338,12 +343,12 @@ class FlowStabilizerVerifier:
                 self.zs[q1] ^= yt
                 self.zs[q2] ^= self.xs[q1]
                 self.xs[q2] ^= self.xs[q1]
-        elif inst.name == 'XCY' or inst.name == 'YCX':
+        elif inst.name == "XCY" or inst.name == "YCX":
             ts = inst.targets_copy()
             for k in range(0, len(ts), 2)[::-1]:
                 t1 = ts[k]
                 t2 = ts[k + 1]
-                if inst.name == 'YCX':
+                if inst.name == "YCX":
                     t1, t2 = t2, t1
                 assert t1.is_qubit_target
                 assert t2.is_qubit_target
@@ -353,7 +358,7 @@ class FlowStabilizerVerifier:
                 self.xs[q1] ^= yt
                 self.zs[q2] ^= self.zs[q1]
                 self.xs[q2] ^= self.zs[q1]
-        elif inst.name == 'MPP':
+        elif inst.name == "MPP":
             targets = inst.targets_copy()[::-1]
             start = 0
             while start < len(targets):
@@ -372,7 +377,7 @@ class FlowStabilizerVerifier:
                     elif t.is_z_target:
                         z_mask[t.value] ^= True
                     else:
-                        raise NotImplementedError(f'{inst=}')
+                        raise NotImplementedError(f"{inst=}")
 
                 for k in range(self.xs.shape[1]):
                     x_combos = np.sum(np.bitwise_and(self.xs[:, k], z_mask), axis=0)
@@ -387,9 +392,9 @@ class FlowStabilizerVerifier:
 
                 start = end
 
-        elif inst.name == 'TICK':
+        elif inst.name == "TICK":
             pass
-        elif inst.name == 'QUBIT_COORDS':
+        elif inst.name == "QUBIT_COORDS":
             pass
         else:
-            raise NotImplementedError(f'{inst=}')
+            raise NotImplementedError(f"{inst=}")

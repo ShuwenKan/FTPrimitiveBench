@@ -11,7 +11,7 @@ Y-transition round's detector-rec references back to our surgery's last
 post-merge round measurements.
 """
 
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 import stim
 
@@ -63,8 +63,17 @@ def _split_into_ticks(circuit: stim.Circuit) -> List[List[stim.CircuitInstructio
 
 def _is_measure_tick(segment: List[stim.CircuitInstruction]) -> bool:
     measurement_ops = {
-        "M", "MX", "MY", "MZ", "MR", "MRX", "MRY", "MRZ",
-        "DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS",
+        "M",
+        "MX",
+        "MY",
+        "MZ",
+        "MR",
+        "MRX",
+        "MRY",
+        "MRZ",
+        "DETECTOR",
+        "OBSERVABLE_INCLUDE",
+        "SHIFT_COORDS",
     }
     return bool(segment) and all(inst.name in measurement_ops for inst in segment)
 
@@ -93,13 +102,9 @@ def build_s_gate_circuit(
     coordinate lookup.
     """
     if post_rounds < 1:
-        raise ValueError(
-            f"s_gate surgery requires post_rounds >= 1, got {post_rounds}."
-        )
+        raise ValueError(f"s_gate surgery requires post_rounds >= 1, got {post_rounds}.")
     if merge_rounds < 1:
-        raise ValueError(
-            f"s_gate surgery requires merge_rounds >= 1, got {merge_rounds}."
-        )
+        raise ValueError(f"s_gate surgery requires merge_rounds >= 1, got {merge_rounds}.")
     if (distance + bridge_length) % 2 != 0:
         raise ValueError(
             "S-gate requires (distance + bridge_length) to be even so that "
@@ -114,7 +119,9 @@ def build_s_gate_circuit(
     boundary_preset = {"top": "X", "bot": "X", "left": "Z", "right": "Z"}
 
     individual_patch, merged_patch = build_merged_patch(
-        x_distance, z_distance, bridge_length,
+        x_distance,
+        z_distance,
+        bridge_length,
         horizontal=False,
         individual_boundaries=boundary_preset,
         merged_boundaries=boundary_preset,
@@ -200,8 +207,10 @@ def build_s_gate_circuit(
         if prepend_shift:
             frag.append("SHIFT_COORDS", [], (0, 0, 1))
         frag += build_surface_code_round_circuit(
-            individual_resolved, individual_layers,
-            individual_meas_x, individual_meas_z,
+            individual_resolved,
+            individual_layers,
+            individual_meas_x,
+            individual_meas_z,
         )
         # X-stabs deterministic (+1) on |+>^n data; Z-stabs random (skip).
         for c in individual_meas_x_coords:
@@ -216,8 +225,10 @@ def build_s_gate_circuit(
         frag = stim.Circuit()
         frag.append("SHIFT_COORDS", [], (0, 0, 1))
         frag += build_surface_code_round_circuit(
-            individual_resolved, individual_layers,
-            individual_meas_x, individual_meas_z,
+            individual_resolved,
+            individual_layers,
+            individual_meas_x,
+            individual_meas_z,
         )
         for c in individual_meas_x_coords:
             curr = _curr_indiv("X", c)
@@ -240,8 +251,10 @@ def build_s_gate_circuit(
         if prepend_shift:
             frag.append("SHIFT_COORDS", [], (0, 0, 1))
         frag += build_surface_code_round_circuit(
-            merged_resolved, merged_layers,
-            merged_meas_x, merged_meas_z,
+            merged_resolved,
+            merged_layers,
+            merged_meas_x,
+            merged_meas_z,
         )
         for m_coord, (ttype, _D_i, _D_anc, basis) in cls.items():
             # Only X-type stabs are deterministic in round 0 (X-basis data + ancilla).
@@ -268,8 +281,10 @@ def build_s_gate_circuit(
         frag = stim.Circuit()
         frag.append("SHIFT_COORDS", [], (0, 0, 1))
         frag += build_surface_code_round_circuit(
-            merged_resolved, merged_layers,
-            merged_meas_x, merged_meas_z,
+            merged_resolved,
+            merged_layers,
+            merged_meas_x,
+            merged_meas_z,
         )
         for c in merged_meas_x_coords:
             curr = _curr_merged("X", c)
@@ -297,8 +312,11 @@ def build_s_gate_circuit(
         pre_first = _build_pre_first(prepend_shift=False)
         pre_rest = _build_pre_rest()
         append_repeated_phase(
-            circuit, pre_rounds,
-            pre_first, middle_round=pre_rest, last_round=pre_rest,
+            circuit,
+            pre_rounds,
+            pre_first,
+            middle_round=pre_rest,
+            last_round=pre_rest,
         )
         is_first_round_of_circuit = False
 
@@ -316,8 +334,11 @@ def build_s_gate_circuit(
     merge_first = _build_merge_first(prepend_shift=not is_first_round_of_circuit)
     merge_rest = _build_merge_rest()
     append_repeated_phase(
-        circuit, merge_rounds,
-        merge_first, middle_round=merge_rest, last_round=merge_rest,
+        circuit,
+        merge_rounds,
+        merge_first,
+        middle_round=merge_rest,
+        last_round=merge_rest,
     )
     is_first_round_of_circuit = False
 
@@ -352,8 +373,7 @@ def build_s_gate_circuit(
             continue
         last_merge_stab = _curr_merged("X", m_coord) - n_ancilla
         ancilla_recs = [
-            stim.target_rec(-(n_ancilla - ancilla_pos[d]))
-            for d in D_anc if d in ancilla_pos
+            stim.target_rec(-(n_ancilla - ancilla_pos[d])) for d in D_anc if d in ancilla_pos
         ]
         if not ancilla_recs:
             continue
@@ -371,8 +391,10 @@ def build_s_gate_circuit(
         if prepend_shift:
             frag.append("SHIFT_COORDS", [], (0, 0, 1))
         frag += build_surface_code_round_circuit(
-            individual_resolved, individual_layers,
-            individual_meas_x, individual_meas_z,
+            individual_resolved,
+            individual_layers,
+            individual_meas_x,
+            individual_meas_z,
         )
         for it in individual_patch.tiles:
             m = it.measurement_qubit
@@ -396,8 +418,7 @@ def build_s_gate_circuit(
                 if basis != "X":
                     continue
                 anc_offsets = [
-                    -(n_indiv + n_ancilla - ancilla_pos[d])
-                    for d in D_anc if d in ancilla_pos
+                    -(n_indiv + n_ancilla - ancilla_pos[d]) for d in D_anc if d in ancilla_pos
                 ]
                 refs = [stim.target_rec(curr), stim.target_rec(last_merge)] + [
                     stim.target_rec(o) for o in anc_offsets
@@ -410,8 +431,10 @@ def build_s_gate_circuit(
         frag = stim.Circuit()
         frag.append("SHIFT_COORDS", [], (0, 0, 1))
         frag += build_surface_code_round_circuit(
-            individual_resolved, individual_layers,
-            individual_meas_x, individual_meas_z,
+            individual_resolved,
+            individual_layers,
+            individual_meas_x,
+            individual_meas_z,
         )
         for c in individual_meas_x_coords:
             curr = _curr_indiv("X", c)
@@ -432,8 +455,11 @@ def build_s_gate_circuit(
     post_first = _build_post_first(prepend_shift=True)
     post_rest = _build_post_rest()
     append_repeated_phase(
-        circuit, post_rounds,
-        post_first, middle_round=post_rest, last_round=post_rest,
+        circuit,
+        post_rounds,
+        post_first,
+        middle_round=post_rest,
+        last_round=post_rest,
     )
 
     # Collect bridge-boundary X-stab coords (kept for legacy interface; the
@@ -465,8 +491,11 @@ def s_gate_surgery(
     in-circuit; no external annotation needed.
     """
     return build_s_gate_circuit(
-        distance, bridge_length,
-        pre_rounds, merge_rounds, post_rounds,
+        distance,
+        bridge_length,
+        pre_rounds,
+        merge_rounds,
+        post_rounds,
     )
 
 
@@ -494,8 +523,11 @@ def s_gate(
         raise ValueError(f"s_gate requires post_rounds >= 1, got {post_rounds}.")
 
     _, upper_x, lower_x, surgery_circuit = s_gate_surgery(
-        distance, bridge_length,
-        pre_rounds, merge_rounds, post_rounds,
+        distance,
+        bridge_length,
+        pre_rounds,
+        merge_rounds,
+        post_rounds,
     )
     Y_circ = make_y_measurement_circuit(
         boundary_rounds=boundary_rounds,
@@ -504,8 +536,12 @@ def s_gate(
     )
     mapped_patches = [(0, 0), (0, distance + bridge_length)]
     merged, _mapping = _remap_circuit(
-        distance, Y_circ, surgery_circuit, mapped_patches,
-        upper_x, lower_x,
+        distance,
+        Y_circ,
+        surgery_circuit,
+        mapped_patches,
+        upper_x,
+        lower_x,
     )
     return merged
 
@@ -594,7 +630,7 @@ def _remap_circuit(
     # stripped memory round.
     n_memory = sum(
         inst.num_measurements
-        for seg in Y_circuit_segs[1:memory_end_seg_idx + 1]
+        for seg in Y_circuit_segs[1 : memory_end_seg_idx + 1]
         for inst in seg
         if inst.name == "MPP" or inst.name in meas_ops
     )
@@ -606,7 +642,7 @@ def _remap_circuit(
     # coord).
     y_reference_coord: Dict[int, Tuple[float, float]] = {}
     y_abs_probe = n_preamble
-    for seg in Y_circuit_segs[1:memory_end_seg_idx + 1]:
+    for seg in Y_circuit_segs[1 : memory_end_seg_idx + 1]:
         for inst in seg:
             if inst.name == "MPP" or inst.name in meas_ops:
                 y_abs_probe += inst.num_measurements
@@ -648,12 +684,10 @@ def _remap_circuit(
         return merged_abs - merged_total_meas
 
     # Port segments from memory_end_seg_idx + 1 onwards.
-    for seg in Y_circuit_segs[memory_end_seg_idx + 1:]:
+    for seg in Y_circuit_segs[memory_end_seg_idx + 1 :]:
         seg_is_meas = _is_measure_tick(seg)
         seg_n_meas = sum(
-            inst.num_measurements
-            for inst in seg
-            if inst.name in meas_ops or inst.name == "MPP"
+            inst.num_measurements for inst in seg if inst.name in meas_ops or inst.name == "MPP"
         )
 
         if not seg_is_meas:

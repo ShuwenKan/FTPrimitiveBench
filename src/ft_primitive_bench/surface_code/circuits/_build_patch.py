@@ -9,14 +9,14 @@ DIRECTION_OFFSETS = {
     "DL": -0.5 + 0.5j,
 }
 BOUNDARY_ACTIVE_DIRECTIONS = {
-    'bottom': {'DR', 'DL'},
-    'top': {'UR', 'UL'},
-    'left': {'UR', 'DR'},
-    'right': {'UL', 'DL'},
+    "bottom": {"DR", "DL"},
+    "top": {"UR", "UL"},
+    "left": {"UR", "DR"},
+    "right": {"UL", "DL"},
 }
 
-BoundaryOrientation = Literal['top', 'bottom', 'left', 'right']
-BoundaryBasis = Literal['X', 'Z']
+BoundaryOrientation = Literal["top", "bottom", "left", "right"]
+BoundaryBasis = Literal["X", "Z"]
 
 
 def _schedule_type_for_basis(tile_basis: str, *, top_bottom_basis: str) -> str:
@@ -69,10 +69,10 @@ def checkerboard_weight4_patch(
             m = complex(mx, my)
             basis = start if (dx + dy) % 2 == 0 else alternate
             dq = {
-                'UL': complex(mx - 0.5, my - 0.5),
-                'UR': complex(mx + 0.5, my - 0.5),
-                'DR': complex(mx + 0.5, my + 0.5),
-                'DL': complex(mx - 0.5, my + 0.5),
+                "UL": complex(mx - 0.5, my - 0.5),
+                "UR": complex(mx + 0.5, my - 0.5),
+                "DR": complex(mx + 0.5, my + 0.5),
+                "DL": complex(mx - 0.5, my + 0.5),
             }
             tiles.append(
                 Tile(
@@ -109,18 +109,18 @@ def boundary_tiles(
         A Patch containing the requested boundary segment.
     """
     if length <= 0:
-        raise ValueError('length must be a positive integer')
+        raise ValueError("length must be a positive integer")
 
     basis = basis.upper()
-    if basis not in {'X', 'Z'}:
+    if basis not in {"X", "Z"}:
         raise ValueError("basis must be 'X' or 'Z'")
 
     orientation = orientation.lower()
     if orientation not in BOUNDARY_ACTIVE_DIRECTIONS:
-        raise ValueError('orientation must be one of top/bottom/left/right')
+        raise ValueError("orientation must be one of top/bottom/left/right")
 
     step: complex
-    if orientation in {'top', 'bottom'}:
+    if orientation in {"top", "bottom"}:
         step = 2.0 + 0.0j
     else:
         step = 0.0 + 2.0j
@@ -132,7 +132,7 @@ def boundary_tiles(
         measurement = start + i * step
         dq = {
             label: (measurement + DIRECTION_OFFSETS[label] if label in active_dirs else None)
-            for label in ('UR', 'UL', 'DR', 'DL')
+            for label in ("UR", "UL", "DR", "DL")
         }
         tiles.append(
             Tile(
@@ -184,31 +184,33 @@ def rectangular_surface_code_patch(
         for tile in interior_patch.tiles:
             if sum(v is not None for v in tile.data_qubits.values()) != 4:
                 raise RuntimeError("Interior tiles must have weight-4 stabilizers")
-            tiles.append(Tile(
-                basis=tile.basis,
-                measurement_qubit=tile.measurement_qubit,
-                data_qubits=dict(tile.data_qubits),
-                schedule_type=_schedule_type_for_basis(
-                    tile.basis,
-                    top_bottom_basis=top_bottom_basis,
-                ),
-            ))
+            tiles.append(
+                Tile(
+                    basis=tile.basis,
+                    measurement_qubit=tile.measurement_qubit,
+                    data_qubits=dict(tile.data_qubits),
+                    schedule_type=_schedule_type_for_basis(
+                        tile.basis,
+                        top_bottom_basis=top_bottom_basis,
+                    ),
+                )
+            )
 
     def _boundary_coords(orientation: str, basis: str) -> list[complex]:
         coords: list[complex] = []
-        if orientation == 'bottom':
+        if orientation == "bottom":
             ay = 0
             imag = 0.5
             for ax in range(1, x_distance):
                 if _checkerboard_from_indices(ax, ay) == basis:
                     coords.append(complex(ax + 0.5, imag))
-        elif orientation == 'top':
+        elif orientation == "top":
             ay = z_distance
             imag = z_distance + 0.5
             for ax in range(1, x_distance):
                 if _checkerboard_from_indices(ax, ay) == basis:
                     coords.append(complex(ax + 0.5, imag))
-        elif orientation == 'left':
+        elif orientation == "left":
             ax = 0
             real = 0.5
             for ay in range(1, z_distance):
@@ -223,10 +225,10 @@ def rectangular_surface_code_patch(
         return coords
 
     for orientation, boundary_basis in (
-        ('top', top_bottom_basis),
-        ('bottom', top_bottom_basis),
-        ('left', left_right_basis),
-        ('right', left_right_basis),
+        ("top", top_bottom_basis),
+        ("bottom", top_bottom_basis),
+        ("left", left_right_basis),
+        ("right", left_right_basis),
     ):
         coords = _boundary_coords(orientation, boundary_basis)
         if not coords:
@@ -240,15 +242,17 @@ def rectangular_surface_code_patch(
         )
 
         for tile in boundary_patch.tiles:
-            tiles.append(Tile(
-                basis=boundary_basis,
-                measurement_qubit=tile.measurement_qubit,
-                data_qubits=dict(tile.data_qubits),
-                schedule_type=_schedule_type_for_basis(
-                    boundary_basis,
-                    top_bottom_basis=top_bottom_basis,
-                ),
-            ))
+            tiles.append(
+                Tile(
+                    basis=boundary_basis,
+                    measurement_qubit=tile.measurement_qubit,
+                    data_qubits=dict(tile.data_qubits),
+                    schedule_type=_schedule_type_for_basis(
+                        boundary_basis,
+                        top_bottom_basis=top_bottom_basis,
+                    ),
+                )
+            )
 
     return Patch(tiles)
 

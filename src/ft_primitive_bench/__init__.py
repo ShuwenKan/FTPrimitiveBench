@@ -10,6 +10,7 @@ Either can be imported directly:
 >>> from ft_primitive_bench.surface_code import memory
 >>> from ft_primitive_bench.noise_models import pauli_biased
 """
+
 from importlib import metadata as _metadata
 
 from . import noise_models, surface_code

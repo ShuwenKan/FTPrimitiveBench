@@ -16,37 +16,21 @@ Public API
 - ``measurement_biased(p, bias_factor, ...)`` — uniform SPAM amplification.
 - ``nonuniform(p, sigma, *, variant, seed, ...)`` — Gaussian per-component scatter.
 """
+
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
-from ._noise_core import (
-    CLIFFORD_1Q,
-    CLIFFORD_2Q,
-    MEASUREMENT_OPS,
-    OP_TYPES,
-    RESET_OPS,
-    _iter_split_op_moments,
-)
-from .channels import (
-    clip_probability,
-    make_1q_biased,
-    make_1q_depolarizing,
-    make_2q_biased,
-    make_2q_depolarizing,
-    make_measurement_flip_channel,
-    make_reset_flip_channel,
-)
+from ._noise_core import CLIFFORD_1Q, CLIFFORD_2Q, MEASUREMENT_OPS, OP_TYPES, RESET_OPS
+from .channels import clip_probability, make_1q_biased, make_2q_biased
 from .hardware_noise import (
-    CompiledCircuit,
     GateDurations,
     NoiseModel,
     NoiseParams,
     RoundIndexedNoiseSpec,
     RoundNoiseParams,
-    infer_moment_rounds,
 )
 from .noise_profile import (
     Coherence,
@@ -70,6 +54,7 @@ _GATE_IDLE_KEYS = _CLIFFORD_1Q_GATES | _CLIFFORD_2Q_GATES
 
 # ─── Mode A vs Mode B helpers ─────────────────────────────────────────────────
 
+
 def _split_rate_duration(value: Any) -> Tuple[float, Optional[float]]:
     """Return (rate, duration_or_None) from a bare float or (rate, duration) tuple."""
     if isinstance(value, tuple):
@@ -78,6 +63,7 @@ def _split_rate_duration(value: Any) -> Tuple[float, Optional[float]]:
 
 
 # ─── NoiseProfile entry → internal NoiseParams converter ──────────────────────
+
 
 def _entry_to_noise_params(entry: Mapping[str, Any]) -> NoiseParams:
     """Convert a single profile entry's rate-dict to the engine's NoiseParams.
@@ -205,9 +191,11 @@ def _profile_to_internal_spec(profile: NoiseProfile) -> RoundIndexedNoiseSpec:
 
 # ─── Configured NoiseModel ────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class NoiseModelConfig:
     """Metadata for a packaged-factory-built NoiseModel."""
+
     model_type: str
     p: float
     bias_factor: float = 1.0
@@ -223,6 +211,7 @@ class NoiseModelConfig:
 @dataclass
 class SampledFactorSnapshot:
     """A snapshot of the random factors that nonuniform sampled."""
+
     variant: str
     seed: int
     sigma: float
@@ -233,10 +222,17 @@ class SampledFactorSnapshot:
 
 class ConfiguredNoiseModel(NoiseModel):
     """NoiseModel built by a packaged factory; carries metadata about its construction."""
-    def __init__(self, *, spec: RoundIndexedNoiseSpec, gate_durations: GateDurations = _DEFAULT_GATE_TIMES,
-                 verbose: bool = False, profile: Optional[NoiseProfile] = None,
-                 config: Optional[NoiseModelConfig] = None,
-                 sampled_factors: Optional[SampledFactorSnapshot] = None):
+
+    def __init__(
+        self,
+        *,
+        spec: RoundIndexedNoiseSpec,
+        gate_durations: GateDurations = _DEFAULT_GATE_TIMES,
+        verbose: bool = False,
+        profile: Optional[NoiseProfile] = None,
+        config: Optional[NoiseModelConfig] = None,
+        sampled_factors: Optional[SampledFactorSnapshot] = None,
+    ):
         super().__init__(spec=spec, gate_durations=gate_durations, verbose=verbose)
         self._profile = profile
         self._config = config
@@ -264,13 +260,19 @@ class ConfiguredNoiseModel(NoiseModel):
         elif cfg.model_type == "measurement_biased":
             parts.append(f"bias_factor={cfg.bias_factor}")
         elif cfg.model_type == "nonuniform":
-            parts.extend([f"variant={cfg.variant}", f"sigma={cfg.sigma}",
-                          f"distribution={cfg.distribution}",
-                          f"seed={cfg.seed if cfg.seed is not None else 0}"])
+            parts.extend(
+                [
+                    f"variant={cfg.variant}",
+                    f"sigma={cfg.sigma}",
+                    f"distribution={cfg.distribution}",
+                    f"seed={cfg.seed if cfg.seed is not None else 0}",
+                ]
+            )
         return f"NoiseModel({', '.join(parts)})"
 
 
 # ─── Top-level baseline factory ───────────────────────────────────────────────
+
 
 def noise_model(
     p: Optional[float] = None,
@@ -328,8 +330,12 @@ def noise_model(
     if p is None:
         # No defaults to populate. Reject any baseline kwarg to avoid surprise.
         for name, val in (
-            ("p_1q", p_1q), ("p_2q", p_2q), ("p_meas", p_meas), ("p_reset", p_reset),
-            ("p_idle", p_idle), ("p_idle_meas", p_idle_meas),
+            ("p_1q", p_1q),
+            ("p_2q", p_2q),
+            ("p_meas", p_meas),
+            ("p_reset", p_reset),
+            ("p_idle", p_idle),
+            ("p_idle_meas", p_idle_meas),
         ):
             if val is not None:
                 raise ValueError(
@@ -411,6 +417,7 @@ def noise_model(
 
 # ─── Pre-packaged factories ───────────────────────────────────────────────────
 
+
 def uniform_depolarizing(p: float, **kwargs: Any) -> NoiseModel:
     """Uniform depolarizing noise. Direct alias for ``noise_model(p, **kwargs)``."""
     return noise_model(p, **kwargs)
@@ -435,9 +442,7 @@ def pauli_biased(
     if axis_u not in {"Z", "X"}:
         raise ValueError(f"axis must be 'Z' or 'X'; got {axis!r}.")
     if bias_factor < 1.0:
-        raise ValueError(
-            f"bias_factor must be ≥ 1; got {bias_factor}. For bias < 1 swap the axis."
-        )
+        raise ValueError(f"bias_factor must be ≥ 1; got {bias_factor}. For bias < 1 swap the axis.")
 
     # Build the depolarizing baseline first.
     base = noise_model(p, **kwargs)
@@ -530,7 +535,10 @@ def pauli_biased(
         spec=spec,
         profile=base_profile,
         config=NoiseModelConfig(
-            model_type="pauli_biased", p=float(p), axis=axis_u, bias_factor=eta,
+            model_type="pauli_biased",
+            p=float(p),
+            axis=axis_u,
+            bias_factor=eta,
         ),
     )
 
@@ -601,7 +609,9 @@ def nonuniform(
     if sigma < 0:
         raise ValueError(f"sigma must be ≥ 0; got {sigma}.")
     if distribution != "gaussian":
-        raise ValueError(f"only distribution='gaussian' supported in this version; got {distribution!r}.")
+        raise ValueError(
+            f"only distribution='gaussian' supported in this version; got {distribution!r}."
+        )
     if variant not in {"space_only", "space_time"}:
         raise ValueError(f"variant must be 'space_only' or 'space_time'; got {variant!r}.")
     if min_factor < 0:
@@ -618,8 +628,14 @@ def nonuniform(
             spec=base._spec,  # type: ignore[attr-defined]
             profile=base.profile,  # type: ignore[attr-defined]
             config=NoiseModelConfig(
-                model_type="nonuniform", p=float(p), sigma=sigma, variant=variant,
-                seed=seed, distribution=distribution, min_factor=min_factor, max_factor=max_factor,
+                model_type="nonuniform",
+                p=float(p),
+                sigma=sigma,
+                variant=variant,
+                seed=seed,
+                distribution=distribution,
+                min_factor=min_factor,
+                max_factor=max_factor,
             ),
         )
 
@@ -656,7 +672,11 @@ def nonuniform(
         for q in range(PRESAMPLE_QUBITS):
             f = clip_factor(1.0 + rng.gauss(0.0, sigma))
             space_factors[q] = f
-            entry = _scaled_global_entry(global_entry, factor=f, allowed_keys={"p_1q", "p_meas", "p_reset", "p_idle", "p_idle_meas", "T1", "T2"})
+            entry = _scaled_global_entry(
+                global_entry,
+                factor=f,
+                allowed_keys={"p_1q", "p_meas", "p_reset", "p_idle", "p_idle_meas", "T1", "T2"},
+            )
             if entry:
                 base_profile[q, None] = entry
         # Pair factors: we don't know pairs ahead of time. The engine handles
@@ -670,7 +690,11 @@ def nonuniform(
             for r in range(PRESAMPLE_ROUNDS):
                 f = clip_factor(1.0 + rng.gauss(0.0, sigma))
                 qubit_round_factors[(q, r)] = f
-                entry = _scaled_global_entry(global_entry, factor=f, allowed_keys={"p_1q", "p_meas", "p_reset", "p_idle", "p_idle_meas", "T1", "T2"})
+                entry = _scaled_global_entry(
+                    global_entry,
+                    factor=f,
+                    allowed_keys={"p_1q", "p_meas", "p_reset", "p_idle", "p_idle_meas", "T1", "T2"},
+                )
                 if entry:
                     base_profile[q, r] = entry
 
@@ -687,15 +711,22 @@ def nonuniform(
         spec=spec,
         profile=base_profile,
         config=NoiseModelConfig(
-            model_type="nonuniform", p=float(p), sigma=sigma, variant=variant,
-            seed=seed, distribution=distribution, min_factor=min_factor, max_factor=max_factor,
+            model_type="nonuniform",
+            p=float(p),
+            sigma=sigma,
+            variant=variant,
+            seed=seed,
+            distribution=distribution,
+            min_factor=min_factor,
+            max_factor=max_factor,
         ),
         sampled_factors=snapshot,
     )
 
 
-def _scaled_global_entry(global_entry: Mapping[str, Any], *, factor: float,
-                         allowed_keys: set) -> Dict[str, Any]:
+def _scaled_global_entry(
+    global_entry: Mapping[str, Any], *, factor: float, allowed_keys: set
+) -> Dict[str, Any]:
     """Return a dict whose rate fields are global_entry's rates scaled by `factor`.
 
     Only the rate fields in ``allowed_keys`` are included. Used by nonuniform to

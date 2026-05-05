@@ -1,4 +1,5 @@
 """Tests for surface_code.circuits._build_patch."""
+
 from __future__ import annotations
 
 import pytest
@@ -23,8 +24,10 @@ def test_rectangular_patch_3x5():
 
 def test_rectangular_patch_swapped_basis():
     patch = rectangular_surface_code_patch(
-        x_distance=3, z_distance=3,
-        top_bottom_basis="X", left_right_basis="Z",
+        x_distance=3,
+        z_distance=3,
+        top_bottom_basis="X",
+        left_right_basis="Z",
     )
     assert len(patch.data_set) == 9
     assert len(patch.measure_set) > 0

@@ -5,7 +5,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 
-_PAULI2_ORDER = ["IX", "IY", "IZ", "XI", "XX", "XY", "XZ", "YI", "YX", "YY", "YZ", "ZI", "ZX", "ZY", "ZZ"]
+_PAULI2_ORDER = [
+    "IX",
+    "IY",
+    "IZ",
+    "XI",
+    "XX",
+    "XY",
+    "XZ",
+    "YI",
+    "YX",
+    "YY",
+    "YZ",
+    "ZI",
+    "ZX",
+    "ZY",
+    "ZZ",
+]
 _PAULI2_Z_TERMS = {"IZ", "ZI", "ZZ"}
 _PAULI2_X_TERMS = {"IX", "XI", "XX"}
 _PAULI2_Y_TERMS = {"IY", "YI", "YY"}
@@ -95,9 +111,7 @@ class PauliChannel2:
             boost = _PAULI2_Y_TERMS
         else:
             raise ValueError(f"axis must be 'X', 'Y', or 'Z'; got {axis!r}.")
-        return cls(
-            probs=tuple((float(eta) * q) if e in boost else q for e in _PAULI2_ORDER)
-        )
+        return cls(probs=tuple((float(eta) * q) if e in boost else q for e in _PAULI2_ORDER))
 
     def to_spec(self) -> Tuple[str, List[float]]:
         return ("PAULI_CHANNEL_2", list(self.probs))

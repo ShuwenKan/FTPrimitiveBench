@@ -173,7 +173,8 @@ OP_MEASURE_BASES = {
 }
 
 COLLAPSING_OPS = {
-    op for op, typ in OP_TYPES.items()
+    op
+    for op, typ in OP_TYPES.items()
     if typ in {JUST_RESET_1Q, JUST_MEASURE_1Q, MPP, MEASURE_RESET_1Q}
 }
 
@@ -184,6 +185,7 @@ RESET_OPS = {"R", "RX", "RY", "RZ"}
 # ---------------------------------------------------------------------------
 # Shared dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class GateDurations:
@@ -214,6 +216,7 @@ class TwoQubitNoiseSpec:
 # ---------------------------------------------------------------------------
 # Shared helper functions
 # ---------------------------------------------------------------------------
+
 
 def idle_pauli_channel_from_T1T2(t: float, T1: float, T2: float) -> Tuple[float, float, float]:
     """Return (px, py, pz) for an idle period of duration ``t``."""

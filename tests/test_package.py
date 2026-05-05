@@ -1,4 +1,5 @@
 """Smoke tests for top-level package imports."""
+
 from __future__ import annotations
 
 
@@ -42,20 +43,11 @@ def test_circuits_public_api():
 
 def test_noise_models_public_api():
     from ft_primitive_bench.noise_models import (
-        Coherence,
-        CompiledCircuit,
-        ConfiguredNoiseModel,
-        NoiseModel,
-        NoiseModelConfig,
         NoiseProfile,
-        SampledFactorSnapshot,
-        idle_pauli_channel_from_T1T2,
-        infer_moment_rounds,
         measurement_biased,
         noise_model,
         nonuniform,
         pauli_biased,
-        strip_noise_channels,
         uniform_depolarizing,
     )
 

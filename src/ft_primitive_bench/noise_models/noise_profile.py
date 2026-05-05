@@ -20,6 +20,7 @@ Resolution at (qubit q, round r):
           .merged_with(profile.get((None, r)))
           .merged_with(profile.get((q, r)))
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,9 +29,16 @@ from typing import Any, Iterable, Mapping, Tuple, Union
 # ── Allowed fields in a value dict ──────────────────────────────────────────
 
 # Rate fields that carry a probability (or (rate, duration) tuple in Mode B).
-_RATE_FIELDS = frozenset({
-    "p_1q", "p_2q", "p_meas", "p_reset", "p_idle", "p_idle_meas",
-})
+_RATE_FIELDS = frozenset(
+    {
+        "p_1q",
+        "p_2q",
+        "p_meas",
+        "p_reset",
+        "p_idle",
+        "p_idle_meas",
+    }
+)
 
 # Coherence fields (presence triggers Mode B for that entry).
 _COHERENCE_FIELDS = frozenset({"T1", "T2"})
@@ -41,14 +49,25 @@ _ADVANCED_FIELDS = frozenset({"gate_error", "spam_error", "idle_error"})
 ALLOWED_FIELDS = _RATE_FIELDS | _COHERENCE_FIELDS | _ADVANCED_FIELDS
 
 # Field-class taxonomy used for "is this field meaningful on a qubit/pair entry?".
-_QUBIT_LOCAL_FIELDS = frozenset({
-    "T1", "T2", "p_1q", "p_meas", "p_reset", "p_idle", "p_idle_meas",
-    "gate_error", "spam_error", "idle_error",
-})
+_QUBIT_LOCAL_FIELDS = frozenset(
+    {
+        "T1",
+        "T2",
+        "p_1q",
+        "p_meas",
+        "p_reset",
+        "p_idle",
+        "p_idle_meas",
+        "gate_error",
+        "spam_error",
+        "idle_error",
+    }
+)
 _PAIR_LOCAL_FIELDS = frozenset({"p_2q", "gate_error"})
 
 
 # ── Coherence dataclass ─────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class Coherence:
@@ -56,14 +75,13 @@ class Coherence:
 
     A 2-tuple ``(T1, T2)`` is auto-coerced anywhere ``Coherence`` is accepted.
     """
+
     T1: float
     T2: float
 
     def __post_init__(self) -> None:
         if self.T1 <= 0 or self.T2 <= 0:
-            raise ValueError(
-                f"T1 and T2 must be positive seconds; got T1={self.T1}, T2={self.T2}"
-            )
+            raise ValueError(f"T1 and T2 must be positive seconds; got T1={self.T1}, T2={self.T2}")
 
 
 def _normalize_coherence(value: Any) -> Coherence | None:
@@ -74,39 +92,33 @@ def _normalize_coherence(value: Any) -> Coherence | None:
         return value
     if isinstance(value, tuple) and len(value) == 2:
         return Coherence(T1=float(value[0]), T2=float(value[1]))
-    raise TypeError(
-        f"coherence must be Coherence or (T1, T2) tuple; got {type(value).__name__}."
-    )
+    raise TypeError(f"coherence must be Coherence or (T1, T2) tuple; got {type(value).__name__}.")
 
 
 # ── Key / value validation ──────────────────────────────────────────────────
+
 
 def _is_valid_qubit(x: Any) -> bool:
     return isinstance(x, int) and not isinstance(x, bool) and x >= 0
 
 
 def _is_valid_pair(x: Any) -> bool:
-    return (
-        isinstance(x, tuple)
-        and len(x) == 2
-        and _is_valid_qubit(x[0])
-        and _is_valid_qubit(x[1])
-    )
+    return isinstance(x, tuple) and len(x) == 2 and _is_valid_qubit(x[0]) and _is_valid_qubit(x[1])
 
 
 def _validate_key(key: Any) -> None:
     """Validate a profile key has shape (component, round)."""
     if not (isinstance(key, tuple) and len(key) == 2):
-        raise ValueError(
-            f"NoiseProfile key must be a 2-tuple (component, round); got {key!r}."
-        )
+        raise ValueError(f"NoiseProfile key must be a 2-tuple (component, round); got {key!r}.")
     component, round_idx = key
     if component is not None and not _is_valid_qubit(component) and not _is_valid_pair(component):
         raise ValueError(
             f"component must be a non-negative int (qubit), 2-tuple of non-negative "
             f"ints (pair), or None (broadcast); got {component!r}."
         )
-    if round_idx is not None and not (isinstance(round_idx, int) and not isinstance(round_idx, bool) and round_idx >= 0):
+    if round_idx is not None and not (
+        isinstance(round_idx, int) and not isinstance(round_idx, bool) and round_idx >= 0
+    ):
         raise ValueError(
             f"round must be a non-negative int or None (broadcast); got {round_idx!r}."
         )
@@ -125,9 +137,7 @@ def _validate_rate_value(field: str, value: Any) -> None:
         return
     if isinstance(value, tuple):
         if len(value) != 2:
-            raise ValueError(
-                f"{field} as a tuple must be (rate, duration); got {value!r}."
-            )
+            raise ValueError(f"{field} as a tuple must be (rate, duration); got {value!r}.")
         rate, duration = value
         if not (0.0 <= float(rate) <= 1.0):
             raise ValueError(f"{field} rate must be in [0, 1]; got {rate}.")
@@ -183,9 +193,7 @@ def _validate_value(key: Tuple[Any, Any], value: Mapping[str, Any]) -> dict:
                 raise ValueError(f"{field} must be a positive float; got {v!r}.")
         elif field in _ADVANCED_FIELDS:
             if not isinstance(v, Mapping):
-                raise ValueError(
-                    f"{field} must be a Mapping; got {type(v).__name__}."
-                )
+                raise ValueError(f"{field} must be a Mapping; got {type(v).__name__}.")
 
         out[field] = v
 
@@ -207,9 +215,7 @@ def _validate_value(key: Tuple[Any, Any], value: Mapping[str, Any]) -> dict:
 
     # p_idle_meas requires p_idle within the same entry.
     if "p_idle_meas" in out and "p_idle" not in out:
-        raise ValueError(
-            f"p_idle_meas requires p_idle to be set in entry {key!r}."
-        )
+        raise ValueError(f"p_idle_meas requires p_idle to be set in entry {key!r}.")
 
     # Note: cross-entry Mode A vs Mode B consistency (e.g., a pair-keyed entry
     # carrying tuple `p_2q` while the global is Mode A) is checked at engine

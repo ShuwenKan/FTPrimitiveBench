@@ -1,10 +1,10 @@
 """Tests for surface_code.noise_models.profiles factories."""
+
 from __future__ import annotations
 
 import pytest
 import stim
 
-from ft_primitive_bench.surface_code.circuits import memory
 from ft_primitive_bench.noise_models import (
     Coherence,
     NoiseProfile,
@@ -15,6 +15,7 @@ from ft_primitive_bench.noise_models import (
     strip_noise_channels,
     uniform_depolarizing,
 )
+from ft_primitive_bench.surface_code.circuits import memory
 from tests.conftest import assert_decodes_clean
 
 
@@ -25,6 +26,7 @@ def clean_memory():
 
 # ── noise_model() baseline + custom modes ──────────────────────────────────
 
+
 def test_noise_model_baseline(clean_memory):
     m = noise_model(p=1e-3)
     noisy = m.noisy_circuit(clean_memory)
@@ -33,8 +35,9 @@ def test_noise_model_baseline(clean_memory):
 
 
 def test_noise_model_per_class_rates(clean_memory):
-    m = noise_model(p=1e-3, p_1q=1e-4, p_2q=2e-3, p_meas=5e-3, p_reset=1e-3,
-                    p_idle=1e-4, p_idle_meas=1e-3)
+    m = noise_model(
+        p=1e-3, p_1q=1e-4, p_2q=2e-3, p_meas=5e-3, p_reset=1e-3, p_idle=1e-4, p_idle_meas=1e-3
+    )
     noisy = m.noisy_circuit(clean_memory)
     assert_decodes_clean(noisy)
 
@@ -42,8 +45,10 @@ def test_noise_model_per_class_rates(clean_memory):
 def test_noise_model_mode_b_with_coherence(clean_memory):
     m = noise_model(
         p=1e-3,
-        p_1q=(1e-4, 40e-9), p_2q=(2e-3, 120e-9),
-        p_meas=(5e-3, 200e-9), p_reset=(1e-3, 100e-9),
+        p_1q=(1e-4, 40e-9),
+        p_2q=(2e-3, 120e-9),
+        p_meas=(5e-3, 200e-9),
+        p_reset=(1e-3, 100e-9),
         coherence=(30e-6, 20e-6),
     )
     noisy = m.noisy_circuit(clean_memory)
@@ -53,8 +58,10 @@ def test_noise_model_mode_b_with_coherence(clean_memory):
 def test_noise_model_mode_b_with_coherence_object(clean_memory):
     m = noise_model(
         p=1e-3,
-        p_1q=(1e-4, 40e-9), p_2q=(2e-3, 120e-9),
-        p_meas=(5e-3, 200e-9), p_reset=(1e-3, 100e-9),
+        p_1q=(1e-4, 40e-9),
+        p_2q=(2e-3, 120e-9),
+        p_meas=(5e-3, 200e-9),
+        p_reset=(1e-3, 100e-9),
         coherence=Coherence(T1=30e-6, T2=20e-6),
     )
     noisy = m.noisy_circuit(clean_memory)
@@ -87,9 +94,18 @@ def test_noise_model_p_idle_meas_requires_p_idle():
 
 
 def test_noise_model_custom_mode_no_baseline(clean_memory):
-    profile = NoiseProfile({(None, None): {"p_1q": 1e-3, "p_meas": 5e-3,
-                                           "p_2q": 2e-3, "p_reset": 1e-3,
-                                           "p_idle": 1e-4, "p_idle_meas": 1e-3}})
+    profile = NoiseProfile(
+        {
+            (None, None): {
+                "p_1q": 1e-3,
+                "p_meas": 5e-3,
+                "p_2q": 2e-3,
+                "p_reset": 1e-3,
+                "p_idle": 1e-4,
+                "p_idle_meas": 1e-3,
+            }
+        }
+    )
     m = noise_model(profile=profile)
     noisy = m.noisy_circuit(clean_memory)
     assert_decodes_clean(noisy)
@@ -115,6 +131,7 @@ def test_noise_model_with_overrides(clean_memory):
 
 # ── uniform_depolarizing ───────────────────────────────────────────────────
 
+
 def test_uniform_depolarizing(clean_memory):
     m = uniform_depolarizing(p=1e-3)
     noisy = m.noisy_circuit(clean_memory)
@@ -128,6 +145,7 @@ def test_uniform_depolarizing_zero_p(clean_memory):
 
 
 # ── pauli_biased ───────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("axis", ["Z", "X"])
 def test_pauli_biased_axes(clean_memory, axis):
@@ -154,6 +172,7 @@ def test_pauli_biased_invalid_axis():
 
 # ── measurement_biased ─────────────────────────────────────────────────────
 
+
 def test_measurement_biased(clean_memory):
     m = measurement_biased(p=1e-3, bias_factor=5.0)
     noisy = m.noisy_circuit(clean_memory)
@@ -166,6 +185,7 @@ def test_measurement_biased_bias_below_one_raises():
 
 
 # ── nonuniform ─────────────────────────────────────────────────────────────
+
 
 def test_nonuniform_space_time(clean_memory):
     m = nonuniform(p=1e-3, sigma=0.3, variant="space_time", seed=42)
@@ -218,6 +238,7 @@ def test_nonuniform_min_max_factor_invalid():
 
 
 # ── strip_noise_channels round-trip ────────────────────────────────────────
+
 
 def test_strip_noise_channels_round_trip(clean_memory):
     m = uniform_depolarizing(p=1e-3)

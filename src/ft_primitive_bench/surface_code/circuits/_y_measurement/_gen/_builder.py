@@ -9,9 +9,8 @@ been removed. That planner is not reached by the
 ``Y_magic_measure`` code path.
 """
 
-from typing import Iterable, Dict, Callable, Any, Optional, List, Tuple
-
 import dataclasses
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import stim
 
@@ -21,17 +20,19 @@ from ._util import complex_key, sorted_complex
 @dataclasses.dataclass(frozen=True)
 class AtLayer:
     """A special class that indicates the layer to read a measurement key from."""
+
     key: Any
     layer: Any
 
 
 class MeasurementTracker:
     """Tracks measurements and groups of measurements, for producing stim record targets."""
+
     def __init__(self):
         self.recorded: Dict[Any, Optional[List[int]]] = {}
         self.next_measurement_index = 0
 
-    def copy(self) -> 'MeasurementTracker':
+    def copy(self) -> "MeasurementTracker":
         result = MeasurementTracker()
         result.recorded = {k: list(v) for k, v in self.recorded.items()}
         result.next_measurement_index = self.next_measurement_index
@@ -39,7 +40,7 @@ class MeasurementTracker:
 
     def _rec(self, key: Any, value: Optional[List[int]]) -> None:
         if key in self.recorded:
-            raise ValueError(f'Measurement key collision: {key=}')
+            raise ValueError(f"Measurement key collision: {key=}")
         self.recorded[key] = value
 
     def record_measurement(self, key: Any) -> None:
@@ -79,29 +80,27 @@ class Builder:
     Handles measurement tracking (naming results and referring to them by name).
     """
 
-    def __init__(self,
-                 *,
-                 q2i: Dict[complex, int],
-                 circuit: stim.Circuit,
-                 tracker: MeasurementTracker):
+    def __init__(
+        self, *, q2i: Dict[complex, int], circuit: stim.Circuit, tracker: MeasurementTracker
+    ):
         self.q2i = q2i
         self.circuit = circuit
         self.tracker = tracker
 
-    def copy(self) -> 'Builder':
+    def copy(self) -> "Builder":
         """Returns a Builder with independent copies of this builder's circuit and tracking data."""
         return Builder(q2i=dict(self.q2i), circuit=self.circuit.copy(), tracker=self.tracker.copy())
 
-    def fork(self) -> 'Builder':
-        """Returns a Builder with the same underlying tracking but which appends into a different circuit.
-        """
+    def fork(self) -> "Builder":
+        """Returns a Builder with the same underlying tracking but which appends into a different circuit."""
         return Builder(q2i=self.q2i, circuit=stim.Circuit(), tracker=self.tracker)
 
     @staticmethod
     def for_qubits(
-            qubits: Iterable[complex],
-            *,
-            to_circuit_coord_data: Callable[[complex], complex] = lambda e: e) -> 'Builder':
+        qubits: Iterable[complex],
+        *,
+        to_circuit_coord_data: Callable[[complex], complex] = lambda e: e,
+    ) -> "Builder":
         q2i = {q: i for i, q in enumerate(sorted_complex(set(qubits)))}
         circuit = stim.Circuit()
         for q, i in q2i.items():
@@ -113,26 +112,33 @@ class Builder:
             tracker=MeasurementTracker(),
         )
 
-    def gate(self,
-             name: str,
-             qubits: Iterable[complex]) -> None:
-        assert name not in ['CZ', 'ZCZ', 'XCX', 'YCY', 'ISWAP', 'ISWAP_DAG', 'SWAP', 'M', 'MX', 'MY']
+    def gate(self, name: str, qubits: Iterable[complex]) -> None:
+        assert name not in [
+            "CZ",
+            "ZCZ",
+            "XCX",
+            "YCY",
+            "ISWAP",
+            "ISWAP_DAG",
+            "SWAP",
+            "M",
+            "MX",
+            "MY",
+        ]
         qubits = sorted_complex(qubits)
         if not qubits:
             return
         self.circuit.append(name, [self.q2i[q] for q in qubits])
 
-    def gate2(self,
-              name: str,
-              pairs: Iterable[Tuple[complex, complex]]) -> None:
+    def gate2(self, name: str, pairs: Iterable[Tuple[complex, complex]]) -> None:
         pairs = sorted(pairs, key=lambda pair: (complex_key(pair[0]), complex_key(pair[1])))
-        if name == 'XCZ':
+        if name == "XCZ":
             pairs = [pair[::-1] for pair in pairs]
-            name = 'CX'
-        if name == 'YCZ':
+            name = "CX"
+        if name == "YCZ":
             pairs = [pair[::-1] for pair in pairs]
-            name = 'CY'
-        if name in ['CZ', 'ZCZ', 'XCX', 'YCY', 'ISWAP', 'ISWAP_DAG', 'SWAP']:
+            name = "CY"
+        if name in ["CZ", "ZCZ", "XCX", "YCY", "ISWAP", "ISWAP_DAG", "SWAP"]:
             pairs = [sorted_complex(pair) for pair in pairs]
         if not pairs:
             return
@@ -141,12 +147,14 @@ class Builder:
     def shift_coords(self, *, dp: complex = 0, dt: int):
         self.circuit.append("SHIFT_COORDS", [], [dp.real, dp.imag, dt])
 
-    def measure(self,
-                qubits: Iterable[complex],
-                *,
-                basis: str = 'Z',
-                tracker_key: Callable[[complex], Any] = lambda e: e,
-                save_layer: Any) -> None:
+    def measure(
+        self,
+        qubits: Iterable[complex],
+        *,
+        basis: str = "Z",
+        tracker_key: Callable[[complex], Any] = lambda e: e,
+        save_layer: Any,
+    ) -> None:
         qubits = sorted_complex(qubits)
         if not qubits:
             return
@@ -154,14 +162,16 @@ class Builder:
         for q in qubits:
             self.tracker.record_measurement(AtLayer(tracker_key(q), save_layer))
 
-    def measure_pauli_product(self,
-                              *,
-                              xs: Iterable[complex] = (),
-                              ys: Iterable[complex] = (),
-                              zs: Iterable[complex] = (),
-                              b2qs: Dict[str, Iterable[complex]] = None,
-                              q2b: Dict[complex, str] = None,
-                              key: Any):
+    def measure_pauli_product(
+        self,
+        *,
+        xs: Iterable[complex] = (),
+        ys: Iterable[complex] = (),
+        zs: Iterable[complex] = (),
+        b2qs: Dict[str, Iterable[complex]] = None,
+        q2b: Dict[complex, str] = None,
+        key: Any,
+    ):
         """Adds an MPP operation to measure the given qubits. Supports a variety of formats.
 
         Note that all formats are combined as if multiplying Pauli observables (ignoring phase and
@@ -180,24 +190,24 @@ class Builder:
         z = set(zs)
         if b2qs is not None:
             for b, bqs in b2qs.items():
-                if b == 'X':
+                if b == "X":
                     x |= set(bqs)
-                elif b == 'Y':
+                elif b == "Y":
                     y |= set(bqs)
-                elif b == 'Z':
+                elif b == "Z":
                     z |= set(bqs)
                 else:
-                    raise NotImplementedError(f'{b=}')
+                    raise NotImplementedError(f"{b=}")
         if q2b is not None:
             for q, b in q2b.items():
-                if b == 'X':
+                if b == "X":
                     x.add(q)
-                elif b == 'Y':
+                elif b == "Y":
                     y.add(q)
-                elif b == 'Z':
+                elif b == "Z":
                     z.add(q)
                 else:
-                    raise NotImplementedError(f'{b=}')
+                    raise NotImplementedError(f"{b=}")
         xz = x & z
         xy = x & y
         yz = y & z
@@ -225,46 +235,45 @@ class Builder:
             targets.append(comb)
         if targets:
             targets.pop()
-            self.circuit.append('MPP', targets)
+            self.circuit.append("MPP", targets)
             self.tracker.record_measurement(key)
         else:
             self.tracker.make_measurement_group([], key=key)
 
-    def detector(self,
-                 keys: Iterable[Any],
-                 *,
-                 pos: Optional[complex],
-                 t: float = 0,
-                 mark_as_post_selected: bool = False,
-                 ignore_non_existent: bool = False) -> None:
+    def detector(
+        self,
+        keys: Iterable[Any],
+        *,
+        pos: Optional[complex],
+        t: float = 0,
+        mark_as_post_selected: bool = False,
+        ignore_non_existent: bool = False,
+    ) -> None:
         if pos is not None:
             coords = [pos.real, pos.imag, t]
             if mark_as_post_selected:
                 coords.append(1)
         else:
             if mark_as_post_selected:
-                raise ValueError('pos is None and mark_as_post_selected')
+                raise ValueError("pos is None and mark_as_post_selected")
             coords = None
 
         if ignore_non_existent:
             keys = [k for k in keys if k in self.tracker.recorded]
         targets = self.tracker.current_measurement_record_targets_for(keys)
-        self.circuit.append('DETECTOR', targets, coords)
+        self.circuit.append("DETECTOR", targets, coords)
 
-    def obs_include(self,
-                    keys: Iterable[Any],
-                    *,
-                    obs_index: int) -> None:
+    def obs_include(self, keys: Iterable[Any], *, obs_index: int) -> None:
         ms = self.tracker.current_measurement_record_targets_for(keys)
         if ms:
             self.circuit.append(
-                'OBSERVABLE_INCLUDE',
+                "OBSERVABLE_INCLUDE",
                 ms,
                 obs_index,
             )
 
     def tick(self) -> None:
-        self.circuit.append('TICK')
+        self.circuit.append("TICK")
 
     def cz(self, pairs: List[Tuple[complex, complex]]) -> None:
         sorted_pairs = []
@@ -274,7 +283,7 @@ class Builder:
             sorted_pairs.append((a, b))
         sorted_pairs = sorted(sorted_pairs, key=lambda e: (complex_key(e[0]), complex_key(e[1])))
         for a, b in sorted_pairs:
-            self.circuit.append('CZ', [self.q2i[a], self.q2i[b]])
+            self.circuit.append("CZ", [self.q2i[a], self.q2i[b]])
 
     def swap(self, pairs: List[Tuple[complex, complex]]) -> None:
         sorted_pairs = []
@@ -284,14 +293,12 @@ class Builder:
             sorted_pairs.append((a, b))
         sorted_pairs = sorted(sorted_pairs, key=lambda e: (complex_key(e[0]), complex_key(e[1])))
         for a, b in sorted_pairs:
-            self.circuit.append('SWAP', [self.q2i[a], self.q2i[b]])
+            self.circuit.append("SWAP", [self.q2i[a], self.q2i[b]])
 
-    def classical_paulis(self,
-                         *,
-                         control_keys: Iterable[Any],
-                         targets: Iterable[complex],
-                         basis: str) -> None:
-        gate = f'C{basis}'
+    def classical_paulis(
+        self, *, control_keys: Iterable[Any], targets: Iterable[complex], basis: str
+    ) -> None:
+        gate = f"C{basis}"
         indices = [self.q2i[q] for q in sorted_complex(targets)]
         for rec in self.tracker.current_measurement_record_targets_for(control_keys):
             for i in indices:

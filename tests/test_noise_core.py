@@ -1,7 +1,6 @@
 """Tests for surface_code.noise_models._noise_core (private but load-bearing)."""
-from __future__ import annotations
 
-import math
+from __future__ import annotations
 
 import pytest
 

@@ -1,28 +1,14 @@
 # FTPrimitiveBench
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![arXiv](https://img.shields.io/badge/arXiv-2605.04049-b31b1b.svg)](https://arxiv.org/abs/2605.04049)
 
-> **Companion paper:** *FTPrimitiveBench: A Benchmark Suite For Logical
-> Computation Under Hardware-Motivated and Biased Noise Models* — citation
-> entry pending arXiv submission.
+**FTPrimitiveBench** is a Python library for constructing and benchmarking the **primitives** of fault-tolerant computation under hardware-motivated noise models. 
 
-FTPrimitiveBench is a Python library for constructing, instrumenting, and
-benchmarking the **primitives** of fault-tolerant quantum computation on the
-rotated surface code: stabilizer-measurement memory, transversal Hadamard,
-lattice surgery, and a logical S gate. It builds noiseless stabilizer circuit in
-[Stim](https://github.com/quantumlib/Stim) format for each primitive,
-wraps them in configurable noise models - uniform depolarizing, Pauli-biased,
-measurement-biased, Gaussian per-component scatter, and T1/T2-derived
-hardware noise with per-qubit / per-pair / per-round overrides for porting
-real calibration data - and exports noisy circuits ready for
-[`sinter`](https://github.com/quantumlib/Stim/tree/main/glue/sinter) /
-[`pymatching`](https://github.com/oscarhiggott/PyMatching) sampling and
-detector-error-model decoding. A pair of plotting helpers
-(matplotlib 2D + plotly 3D) renders patches and spacetime timelines for
-inspection or paper figures.
+ 
 
 ## Primitives
-
+Rotated Surface Code:
 - **Memory** — `N` rounds of stabilizer measurement on a single patch followed by a basis-aligned final measurement.
 - **Transversal H** — `pre_rounds` rounds of stabilizer measurement, **one** transversal Hadamard layer (with automatic X↔Z schedule swap), then `post_rounds` rounds. The round structure is `pre_rounds + 1 + post_rounds`, with the H layer in the middle.
 - **Lattice surgery** — two patches separated by a configurable bridge, with MZZ / MXX merge and split phases.
@@ -32,8 +18,18 @@ Every primitive returns a `stim.Circuit` with `DETECTOR` and `OBSERVABLE_INCLUDE
 
 ## Noise models
 
-A single canonical factory `noise_model(...)` plus four hardware-motivated pre-packaged builders. All accept the same per-class rate kwargs and per-component override hierarchy.
+A single interface exposes parameters at four levels of granularity:
+**global**, **per-component**, **per-round**, and **per-(component, round)**.
+Three usage modes sit on top:
 
+- **Pre-packaged structured-noise families** — Pauli bias, measurement bias,
+  spatial / spatio-temporal non-uniformity — for controlled comparative
+  studies.
+- **Selective per-qubit and per-round overrides** for device heterogeneity and
+  drift.
+- **Fully customized hardware-aligned profiles** — gate and SPAM rates sourced
+  from device calibration data, while idle channels are accumulated from the
+  compiled syndrome-extraction schedule via per-qubit T1/T2.
 ```python
 from ft_primitive_bench.noise_models import noise_model, pauli_biased, NoiseProfile
 

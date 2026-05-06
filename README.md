@@ -82,30 +82,72 @@ Linux, macOS, and Windows out of the box, with no compiler toolchain required.
 
 ## Installation
 
-PyPI install (`pip install ft-primitive-bench` or
-`uv pip install ft-primitive-bench`) coming soon. From source:
+PyPI install (`pip install ft-primitive-bench` or `uv pip install ft-primitive-bench`)
+coming soon. From source:
 
 ```bash
 git clone https://github.com/ShuwenKan/FTPrimitiveBench.git
 cd FTPrimitiveBench
 ```
 
-Using [`uv`](https://docs.astral.sh/uv/) (recommended):
+### Using [`uv`](https://docs.astral.sh/uv/) (recommended)
+
+**macOS / Linux (bash/zsh):**
 
 ```bash
-uv venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+uv venv
+source .venv/bin/activate
 uv pip install -e .                      # or: -e ".[viz,sampling,dev]"  /  -e ".[all]"
 ```
 
-Using stock `pip` + `venv`:
+**Windows (PowerShell):**
+
+```powershell
+uv venv
+.\.venv\Scripts\Activate.ps1
+uv pip install -e .                      # or: -e ".[viz,sampling,dev]"  /  -e ".[all]"
+```
+
+**Windows (Command Prompt):**
+
+```cmd
+uv venv
+.venv\Scripts\activate.bat
+uv pip install -e .
+```
+
+### Using stock `pip` + `venv`
+
+**macOS / Linux (bash/zsh):**
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -e .                         # or: -e ".[viz,sampling,dev]"  /  -e ".[all]"
 ```
 
-Extras: `[viz]` (matplotlib + plotly), `[sampling]` (sinter + pymatching),
-`[dev]` (pytest, ruff, black, isort, build, jupyter), `[all]` (everything).
+**Windows (PowerShell):**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .                         # or: -e ".[viz,sampling,dev]"  /  -e ".[all]"
+```
+
+**Windows (Command Prompt):**
+
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -e .
+```
+
+### Optional extras
+
+- `[viz]` — matplotlib + plotly
+- `[sampling]` — sinter + pymatching
+- `[dev]` — pytest, ruff, black, isort, build, jupyter
+- `[all]` — everything
 
 ## Quick start
 

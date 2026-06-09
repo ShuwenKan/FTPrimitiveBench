@@ -46,6 +46,11 @@ sampling = [
     "sinter>=1.13",
     "pymatching>=2.1",
 ]
+stimflow = [
+    # Pinned to a known-good commit; stimflow is pre-1.0 with no compat guarantees
+    # and is not on PyPI. Bump deliberately, not opportunistically.
+    "stimflow @ git+https://github.com/quantumlib/Stim.git@6db111d5e11a796b413d730dc172b909692f07f7#subdirectory=glue/stimflow",
+]
 dev = [
     "pytest>=7",
     "pytest-cov",
@@ -58,7 +63,7 @@ dev = [
     "jupyter",
 ]
 all = [
-    "ft-primitive-bench[viz,sampling,dev]",
+    "ft-primitive-bench[viz,sampling,stimflow,dev]",
 ]
 
 [project.urls]

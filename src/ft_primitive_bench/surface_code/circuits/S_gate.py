@@ -15,7 +15,7 @@ from typing import Dict, Iterable, List, Tuple
 
 import stim
 
-from ._make_circuit import build_merged_patch
+from ._make_circuit import Backend, build_merged_patch
 from ._utils import (
     append_repeated_phase,
     build_schedule,
@@ -506,6 +506,8 @@ def s_gate(
     merge_rounds: int,
     boundary_rounds: int,
     post_rounds: int = 1,
+    *,
+    backend: Backend = "legacy",
 ) -> stim.Circuit:
     """ZZ-surgery + teleported logical-Y preparation.
 
@@ -521,6 +523,18 @@ def s_gate(
     """
     if post_rounds < 1:
         raise ValueError(f"s_gate requires post_rounds >= 1, got {post_rounds}.")
+
+    if backend == "stimflow":
+        from ._stimflow.s_gate import s_gate as _s_gate_chunks
+
+        return _s_gate_chunks(
+            distance,
+            bridge_length,
+            pre_rounds,
+            merge_rounds,
+            boundary_rounds,
+            post_rounds,
+        )
 
     _, upper_x, lower_x, surgery_circuit = s_gate_surgery(
         distance,

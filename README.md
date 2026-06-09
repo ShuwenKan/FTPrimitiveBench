@@ -75,6 +75,7 @@ A utility helper `strip_noise_channels(circuit)` round-trips a noisy circuit bac
 | Core (always installed) | `stim>=1.13`, `numpy>=1.21` | stim 1.15.x, numpy 1.21–2.4 |
 | `[viz]` extra | `matplotlib>=3.5`, `plotly>=5.0` | matplotlib 3.9, plotly 5.24 |
 | `[sampling]` extra | `sinter>=1.13`, `pymatching>=2.1` | sinter 1.15, pymatching 2.x |
+| `[stimflow]` extra | `stimflow` (pinned git commit; required for `backend="stimflow"`) | stimflow 0.1.0 |
 | `[dev]` extra | `pytest>=7`, `pytest-cov`, `ruff`, `black`, `isort`, `build`, `twine`, `nbformat`, `jupyter` | latest each |
 
 The core install is small and pure-Python on top of `stim` + `numpy` — works on
@@ -171,17 +172,108 @@ dem = noisy.detector_error_model(decompose_errors=True, approximate_disjoint_err
 The same shape applies to every primitive: build a clean circuit, build a noise
 model, call `model.noisy_circuit(clean)`.
 
+## Circuit construction backends
+
+Every primitive accepts a keyword-only `backend` argument:
+
+```python
+clean = memory(x_distance=3, z_distance=3, rounds=3, backend="legacy")  # default
+clean = memory(x_distance=3, z_distance=3, rounds=3, backend="stimflow")  # stimflow
+```
+
+`backend="legacy"` (the default) uses hand-rolled `stim.target_rec` offset
+arithmetic — a self-contained construction that depends only on `stim` and
+`numpy`. `backend="stimflow"` uses [stimflow](https://github.com/quantumlib/Stim/tree/main/glue/stimflow)'s
+`Chunk` / `ChunkCompiler` framework, requiring the optional `[stimflow]` extra.
+Both backends produce DEM-equivalent circuits — verified by parity tests over a
+grid of distances, round counts, and measurement bases.
+
+The two backends exist side-by-side intentionally: legacy is the source of
+truth for correctness and the no-dependency install path; chunks is the
+declarative form that makes new primitives easier to extend and provides
+`chunk.verify()` as a free stabilizer-flow sanity check on most chunks. The
+chunks pipeline is also where future work like `Chunk.to_html_viewer()`
+integration lands.
+
+### The chunks design: open flows as measurement-record accounts
+
+Each primitive is decomposed into a sequence of `stimflow.Chunk` objects. The
+`ChunkCompiler` threads an "open flows" dictionary across chunks, keyed by
+`PauliMap`, accumulating measurement records as flows pass through. Each
+chunk's per-tile work boils down to one of five `add_flow` calls:
+
+| Operation | API | Effect on the open-flows dict |
+|---|---|---|
+| emit | `add_flow(end=P, measurements=[m])` | open a new account labelled `P` containing `m` |
+| absorb | `add_flow(start=P, measurements=[m])` | close `P`, emit `DETECTOR(rec[account] XOR rec[m])` |
+| passthrough | `add_flow(start=P, end=P, measurements=[m])` | deposit `m` into account `P` |
+| transition | `add_flow(start=P, end=Q)` | rename account `P` → `Q` |
+| self-detector | `add_flow(measurements=[m])` | emit `DETECTOR(rec[m])` with no chain |
+
+The compiler trusts these declarations and emits `DETECTOR` /
+`OBSERVABLE_INCLUDE` instructions automatically — the rec-offset arithmetic
+that dominates the legacy backend disappears entirely. The eight surface-code
+phases (data init, pre-merge syndrome, transition, merged syndrome, ancilla
+destruct, post-merge syndrome, final data measurement) each become a chunk
+whose per-tile logic is one or two flow declarations.
+
+### How lattice surgery handles a fundamental stim-flow tension
+
+The merge-readout observable `L1 * L2` is the product of the two patches'
+logical operators. Across the whole circuit it has a deterministic
+relationship to the bridge stabilizer measurements; **but in any single merge
+round it anticommutes with the X-stab `MX` measurements**. Stim's
+`circuit.has_flow` therefore refuses to recognize `L1*L2 → bridge_anc_recs` as
+a single-chunk flow — both the `measurements="auto"` solver and explicit
+PauliMap composition with ancilla-init stabilizers reject it.
+
+The fix exploits the fact that `ChunkCompiler.append` doesn't call
+`chunk.verify()`. The compiler chains open flows by PauliMap identity, not by
+algebraic validation. So the merge-last chunk just declares the observable
+absorb manually:
+
+```python
+merge_last.add_flow(start=L_merged, measurements=bridge_anc_keys)
+```
+
+The compiler emits `OBSERVABLE_INCLUDE(rec[bridge_anc_keys])` — bit-identical
+to legacy. End-to-end DEM parity against the legacy backend is the
+authoritative correctness check; per-chunk `verify()` is preserved only for
+chunks whose flows are deterministic in isolation (init, pre/post rounds).
+
+The same trick — declaring flows manually where stim can't auto-verify them —
+handles the TYPE B `ancilla_basis` 2-rec detector. When the bridge data is
+initialized in `RX`, the X stabilizer on each bridge data qubit is `+1`
+trivially, so the merged-X stab measurement equals the prior individual-X
+stab measurement:
+
+```python
+transition.add_flow(start=individual_X_pm, measurements=[anc_curr])
+```
+
+No `ChunkReflow` needed; the bridge `+1` X stabilizers are implicit. The
+declared absorb closes the prior round's open `individual_X` account and the
+compiler emits `DETECTOR(rec[anc_prev], rec[anc_curr])`.
+
+This is the general pattern: where stim's local flow analysis would reject a
+declaration that is correct end-to-end, the chunks compiler still threads
+the measurement records through and produces the right circuit. DEM-parity
+tests against the legacy backend gate every primitive.
+
 ## Repository layout
 
 ```
 src/ft_primitive_bench/
     surface_code/
-        circuits/            primitive builders + vendored Y-magic-measurement
-                             subpackage (circuits/_y_measurement/)
+        circuits/            primitive builders (legacy backend) + vendored
+                             Y-magic-measurement subpackage (_y_measurement/)
+        circuits/_stimflow/  stimflow backend: stimflow-based reimplementations
+                             of memory, transversal_h, lattice_surgery
         visualization/       matplotlib 2D patch plots + plotly 3D timelines
     noise_models/            NoiseModel, NoiseProfile, the packaged factories,
                              strip_noise_channels, infer_moment_rounds
 tests/                   pytest suite (one file per source module)
+tests/parity/            stimflow-vs-legacy DEM equivalence tests
 tutorials/               end-to-end walkthrough notebooks
 figures/                 generated plot outputs (PNG / SVG / HTML)
 ```

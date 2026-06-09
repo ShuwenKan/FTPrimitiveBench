@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Literal, Optional, Tuple
 
 import stim
 
@@ -13,7 +13,10 @@ from ._utils import (
     resolve_schedule,
 )
 
+Backend = Literal["legacy", "stimflow"]
+
 __all__ = [
+    "Backend",
     "build_merged_patch",
     "lattice_surgery",
     "memory",
@@ -198,9 +201,15 @@ def memory(
     z_distance: int,
     rounds: int,
     meas_basis: str = "Z",
+    *,
+    backend: Backend = "legacy",
 ) -> stim.Circuit:
     if rounds < 1:
         raise ValueError(f"memory requires rounds >= 1, got {rounds}.")
+    if backend == "stimflow":
+        from ._stimflow.memory import memory as _memory_chunks
+
+        return _memory_chunks(x_distance, z_distance, rounds, meas_basis)
     return _build_rectangular_memory_raw(
         x_distance,
         z_distance,
@@ -675,7 +684,21 @@ def lattice_surgery(
     merge_rounds: int,
     post_rounds: int,
     meas_basis: str = "Z",
+    *,
+    backend: Backend = "legacy",
 ) -> stim.Circuit:
+    if backend == "stimflow":
+        from ._stimflow.lattice_surgery import lattice_surgery as _ls_chunks
+
+        return _ls_chunks(
+            x_distance,
+            z_distance,
+            bridge_length,
+            pre_rounds,
+            merge_rounds,
+            post_rounds,
+            meas_basis,
+        )
     return _build_rectangular_lattice_surgery_raw(
         x_distance,
         z_distance,
@@ -849,10 +872,16 @@ def transversal_h(
     pre_rounds: int,
     post_rounds: int,
     meas_basis: str = "Z",
+    *,
+    backend: Backend = "legacy",
 ) -> stim.Circuit:
     """Transversal logical Hadamard between ``pre_rounds`` stabilizer rounds
     before the H layer and ``post_rounds`` rounds after it (with X/Z
     stabilizer roles swapped post-H)."""
+    if backend == "stimflow":
+        from ._stimflow.transversal_h import transversal_h as _th_chunks
+
+        return _th_chunks(x_distance, z_distance, pre_rounds, post_rounds, meas_basis)
     transversal_gate = "H"
     patch = rectangular_surface_code_patch(x_distance, z_distance)
     schedule, layer_count = build_schedule(patch)

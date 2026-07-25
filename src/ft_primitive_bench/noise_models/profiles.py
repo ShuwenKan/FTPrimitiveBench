@@ -19,18 +19,30 @@ Public API
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
-from ._noise_core import CLIFFORD_1Q, CLIFFORD_2Q, MEASUREMENT_OPS, OP_TYPES, RESET_OPS
+import stim
+
+from ._noise_core import (
+    CLIFFORD_1Q,
+    CLIFFORD_2Q,
+    MEASUREMENT_OPS,
+    OP_TYPES,
+    RESET_OPS,
+    _iter_split_op_moments,
+)
 from .channels import clip_probability, make_1q_biased, make_2q_biased
 from .hardware_noise import (
+    CompiledCircuit,
     GateDurations,
     NoiseModel,
     NoiseParams,
     RoundIndexedNoiseSpec,
     RoundNoiseParams,
+    infer_moment_rounds,
 )
 from .noise_profile import (
     Coherence,
@@ -189,6 +201,151 @@ def _profile_to_internal_spec(profile: NoiseProfile) -> RoundIndexedNoiseSpec:
     )
 
 
+# ─── Nonuniform per-component scaling helpers ─────────────────────────────────
+#
+# The packaged nonuniform model perturbs EVERY physical rate — 1-qubit gate,
+# measurement, reset, idle, AND 2-qubit gate — by an independent Gaussian factor
+# per physical component (per qubit and per pair). The perturbed *rate* is clipped
+# to [0, 0.5]. Materialization happens at compile time (see
+# ``ConfiguredNoiseModel.compile_circuit``) so the sampler sees the circuit's
+# actual qubits and pairs.
+
+
+def _clip_factor(value: float, *, min_factor: float, max_factor: float) -> float:
+    return max(float(min_factor), min(float(max_factor), float(value)))
+
+
+def _scale_probability(value: float, *, factor: float, cap: float) -> float:
+    return max(0.0, min(cap, float(value) * float(factor)))
+
+
+def _raw_instruction(spec: Any) -> Tuple[str, Union[float, Tuple[float, ...]]]:
+    """Coerce a ``("NAME", rate)`` gate/idle spec to a normalized tuple."""
+    name, arg = spec
+    if isinstance(arg, (list, tuple)):
+        return str(name), tuple(float(value) for value in arg)
+    return str(name), float(arg)
+
+
+def _scale_raw_instruction(
+    spec: Any,
+    *,
+    factor: float,
+    cap: float,
+) -> Tuple[str, Union[float, Tuple[float, ...]]]:
+    name, arg = _raw_instruction(spec)
+    if isinstance(arg, tuple):
+        return name, tuple(_scale_probability(value, factor=factor, cap=cap) for value in arg)
+    return name, _scale_probability(arg, factor=factor, cap=cap)
+
+
+def _scale_idle_channel(value: object, *, factor: float, cap: float) -> object:
+    if value is None:
+        return None
+    if callable(value):
+        return lambda idle_t, _value=value, _factor=factor, _cap=cap: _scale_raw_instruction(
+            _value(idle_t),
+            factor=_factor,
+            cap=_cap,
+        )
+    if isinstance(value, Mapping):
+        keys = {str(key).lower() for key in value}
+        if "name" in keys or "arg" in keys or {"px", "py", "pz"} <= keys:
+            return _scale_raw_instruction(value, factor=factor, cap=cap)
+        return {
+            str(name): _scale_idle_channel(item, factor=factor, cap=cap)
+            for name, item in value.items()
+        }
+    return _scale_raw_instruction(value, factor=factor, cap=cap)
+
+
+def _scale_basis_rates(
+    value: Mapping[str, float], *, factor: float, cap: float
+) -> Dict[str, float]:
+    return {
+        str(basis).upper(): _scale_probability(prob, factor=factor, cap=cap)
+        for basis, prob in value.items()
+    }
+
+
+def _pairs_in_moment(moment: Sequence[stim.CircuitInstruction]) -> List[Tuple[int, int]]:
+    """Enumerate the normalized 2-qubit pairs acted on within a single moment."""
+    pairs: set[Tuple[int, int]] = set()
+    for op in moment:
+        if OP_TYPES.get(op.name) != CLIFFORD_2Q:
+            continue
+        targets = [int(target.value) for target in op.targets_copy() if target.is_qubit_target]
+        for i in range(0, len(targets), 2):
+            if i + 1 < len(targets):
+                a, b = targets[i], targets[i + 1]
+                pairs.add((a, b) if a <= b else (b, a))
+    return sorted(pairs)
+
+
+def _sample_nonuniform_adjustments(
+    *,
+    config: "NoiseModelConfig",
+    qubits: Sequence[int],
+    round_indices: Sequence[int],
+    pairs: Sequence[Tuple[int, int]],
+) -> Tuple[
+    Dict[Tuple[int, int], float],
+    Dict[Tuple[Tuple[int, int], int], float],
+    "SampledFactorSnapshot",
+]:
+    """Seeded per-component factor sampler.
+
+    ``space_only``: one factor per qubit and one per pair, frozen across rounds.
+    ``space_time``: an independent factor per ``(qubit, round)`` and ``(pair, round)``.
+    Returns ``(qubit_round_factors, pair_round_factors, snapshot)``.
+    """
+    seed = 0 if config.seed is None else int(config.seed)
+    sigma = float(config.sigma)
+    rng = random.Random(seed)
+    qubit_list = sorted({int(q) for q in qubits})
+    unique_rounds = sorted({int(r) for r in round_indices})
+    pair_list = sorted({_norm_pair(pair) for pair in pairs})
+
+    def draw() -> float:
+        return _clip_factor(
+            1.0 + rng.gauss(0.0, sigma),
+            min_factor=config.min_factor,
+            max_factor=config.max_factor,
+        )
+
+    space_factors: Dict[int, float] = {}
+    qubit_round_factors: Dict[Tuple[int, int], float] = {}
+    pair_round_factors: Dict[Tuple[Tuple[int, int], int], float] = {}
+
+    if config.variant == "space_only":
+        space_factors = {qubit: draw() for qubit in qubit_list}
+        pair_base = {pair: draw() for pair in pair_list}
+        qubit_round_factors = {
+            (qubit, r): space_factors[qubit] for r in unique_rounds for qubit in qubit_list
+        }
+        pair_round_factors = {
+            (pair, r): pair_base[pair] for r in unique_rounds for pair in pair_list
+        }
+    else:  # space_time
+        qubit_round_factors = {(qubit, r): draw() for r in unique_rounds for qubit in qubit_list}
+        pair_round_factors = {(pair, r): draw() for r in unique_rounds for pair in pair_list}
+
+    snapshot = SampledFactorSnapshot(
+        variant=config.variant,
+        seed=seed,
+        sigma=sigma,
+        space_factors=dict(space_factors),
+        pair_factors=dict(pair_round_factors),
+        qubit_round_factors=dict(qubit_round_factors),
+    )
+    return qubit_round_factors, pair_round_factors, snapshot
+
+
+def _norm_pair(pair: Tuple[int, int]) -> Tuple[int, int]:
+    a, b = int(pair[0]), int(pair[1])
+    return (a, b) if a <= b else (b, a)
+
+
 # ─── Configured NoiseModel ────────────────────────────────────────────────────
 
 
@@ -237,6 +394,9 @@ class ConfiguredNoiseModel(NoiseModel):
         self._profile = profile
         self._config = config
         self._sampled_factors = sampled_factors
+        # Base (unscaled) spec kept so the nonuniform scatter can be materialized
+        # per-circuit at compile time (once the actual qubits AND pairs are known).
+        self._base_spec = spec
 
     @property
     def profile(self) -> Optional[NoiseProfile]:
@@ -269,6 +429,174 @@ class ConfiguredNoiseModel(NoiseModel):
                 ]
             )
         return f"NoiseModel({', '.join(parts)})"
+
+    # ── Compile-time nonuniform materialization ───────────────────────────────
+
+    @property
+    def _nonuniform_scatter_active(self) -> bool:
+        cfg = self._config
+        return cfg is not None and cfg.model_type == "nonuniform" and float(cfg.sigma) > 0.0
+
+    def noisy_circuit(
+        self,
+        circuit: Union[stim.Circuit, CompiledCircuit],
+        *,
+        system_qubits: Optional[set[int]] = None,
+        immune_qubits: Optional[set[int]] = None,
+        moment_rounds: Optional[Sequence[int]] = None,
+    ) -> stim.Circuit:
+        if self._nonuniform_scatter_active and isinstance(circuit, CompiledCircuit):
+            raise TypeError(
+                "Packaged nonuniform models (sigma > 0) must receive a raw stim.Circuit "
+                "so they can materialize per-(component, round) overrides at compile time."
+            )
+        return super().noisy_circuit(
+            circuit,
+            system_qubits=system_qubits,
+            immune_qubits=immune_qubits,
+            moment_rounds=moment_rounds,
+        )
+
+    def compile_circuit(
+        self,
+        circuit: stim.Circuit,
+        *,
+        system_qubits: Optional[set[int]] = None,
+        immune_qubits: Optional[set[int]] = None,
+        moment_rounds: Optional[Sequence[int]] = None,
+    ) -> CompiledCircuit:
+        if not self._nonuniform_scatter_active:
+            return super().compile_circuit(
+                circuit,
+                system_qubits=system_qubits,
+                immune_qubits=immune_qubits,
+                moment_rounds=moment_rounds,
+            )
+
+        round_indices = self._resolve_round_indices(
+            circuit, immune_qubits=immune_qubits, moment_rounds=moment_rounds
+        )
+        self._set_spec(
+            self._scaled_nonuniform_spec(
+                circuit,
+                system_qubits=system_qubits,
+                immune_qubits=immune_qubits,
+                round_indices=round_indices,
+            )
+        )
+        return super().compile_circuit(
+            circuit,
+            system_qubits=system_qubits,
+            immune_qubits=immune_qubits,
+            moment_rounds=round_indices,
+        )
+
+    def _scaled_nonuniform_spec(
+        self,
+        circuit: stim.Circuit,
+        *,
+        system_qubits: Optional[set[int]],
+        immune_qubits: Optional[set[int]],
+        round_indices: Sequence[int],
+    ) -> RoundIndexedNoiseSpec:
+        """Materialize per-(qubit, round) and per-(pair, round) scaled overrides.
+
+        Perturbs EVERY rate — 1-qubit gate / measurement / reset / idle on the
+        qubit chain, and the 2-qubit gate error on the pair chain — each by its
+        own component factor, with the perturbed rate clipped to ``[0, 0.5]``.
+        """
+        cfg = self._config
+        base_noise = self._base_spec.global_noise or NoiseParams()
+
+        flat = circuit.flattened()
+        immune = set() if immune_qubits is None else set(immune_qubits)
+        qubits = sorted(
+            (set(range(flat.num_qubits)) if system_qubits is None else set(system_qubits)) - immune
+        )
+        moments = [
+            moment
+            for moment in _iter_split_op_moments(flat, immune_qubits={-1})
+            if not isinstance(moment, stim.CircuitRepeatBlock)
+        ]
+        pairs = sorted({pair for moment in moments for pair in _pairs_in_moment(moment)})
+
+        qubit_round_factors, pair_round_factors, snapshot = _sample_nonuniform_adjustments(
+            config=cfg,
+            qubits=qubits,
+            round_indices=round_indices,
+            pairs=pairs,
+        )
+        self._sampled_factors = snapshot
+
+        qubit_round_overrides: Dict[Tuple[int, int], NoiseParams] = {}
+        pair_round_overrides: Dict[Tuple[Tuple[int, int], int], NoiseParams] = {}
+
+        for (qubit, round_idx), factor in qubit_round_factors.items():
+            if math.isclose(factor, 1.0, rel_tol=0.0, abs_tol=1e-12):
+                continue
+            qubit_round_overrides[(qubit, round_idx)] = NoiseParams(
+                T1=base_noise.T1,
+                T2=base_noise.T2,
+                gate_error={
+                    name: _scale_raw_instruction(spec, factor=factor, cap=0.5)
+                    for name, spec in base_noise.gate_error.items()
+                    if name in _CLIFFORD_1Q_GATES
+                    or name in MEASUREMENT_OPS
+                    or name in RESET_OPS
+                    or name == "*"
+                },
+                spam_error={
+                    "RESET": _scale_basis_rates(
+                        base_noise.spam_error.get("RESET", {}), factor=factor, cap=0.5
+                    ),
+                    "MEASURE": _scale_basis_rates(
+                        base_noise.spam_error.get("MEASURE", {}), factor=factor, cap=0.5
+                    ),
+                },
+                idle_error=_scale_idle_channel(base_noise.idle_error, factor=factor, cap=0.5),
+            )
+
+        for (pair, round_idx), factor in pair_round_factors.items():
+            if math.isclose(factor, 1.0, rel_tol=0.0, abs_tol=1e-12):
+                continue
+            pair_round_overrides[(pair, round_idx)] = NoiseParams(
+                gate_error={
+                    name: _scale_raw_instruction(spec, factor=factor, cap=0.5)
+                    for name, spec in base_noise.gate_error.items()
+                    if name in _CLIFFORD_2Q_GATES or name == "*"
+                },
+            )
+
+        return RoundIndexedNoiseSpec(
+            global_noise=base_noise,
+            qubit_round_overrides=qubit_round_overrides,
+            pair_round_overrides=pair_round_overrides,
+        )
+
+    @staticmethod
+    def _resolve_round_indices(
+        circuit: stim.Circuit,
+        *,
+        immune_qubits: Optional[set[int]],
+        moment_rounds: Optional[Sequence[int]],
+    ) -> List[int]:
+        flat = circuit.flattened()
+        moments = [
+            moment
+            for moment in _iter_split_op_moments(flat, immune_qubits={-1})
+            if not isinstance(moment, stim.CircuitRepeatBlock)
+        ]
+        if moment_rounds is None:
+            inferred = infer_moment_rounds(flat, immune_qubits=immune_qubits)
+            if len(inferred) != len(moments):
+                raise ValueError("Failed to infer one stabilizer-round index per compiled moment.")
+            return inferred
+        if len(moment_rounds) != len(moments):
+            raise ValueError(
+                f"moment_rounds length {len(moment_rounds)} does not match the circuit's "
+                f"{len(moments)} compiled moments."
+            )
+        return [int(value) for value in moment_rounds]
 
 
 # ─── Top-level baseline factory ───────────────────────────────────────────────
@@ -622,131 +950,29 @@ def nonuniform(
         raise ValueError("nonuniform does not currently support coherence (Mode B).")
 
     base = noise_model(p, **kwargs)
-    if sigma == 0:
-        # No scatter — return baseline as-is, but with nonuniform metadata.
-        return ConfiguredNoiseModel(
-            spec=base._spec,  # type: ignore[attr-defined]
-            profile=base.profile,  # type: ignore[attr-defined]
-            config=NoiseModelConfig(
-                model_type="nonuniform",
-                p=float(p),
-                sigma=sigma,
-                variant=variant,
-                seed=seed,
-                distribution=distribution,
-                min_factor=min_factor,
-                max_factor=max_factor,
-            ),
-        )
-
-    # Sample factors per (component, round). For space_only we sample once per
-    # qubit/pair and reuse across rounds — but since we don't know the round
-    # count without a circuit, we sample lazily on first noisy_circuit() call.
-    # For now, sample only for the rounds we know about (any rounds in the
-    # profile already), plus we'll override via materialize_for_circuit later.
-    rng = random.Random(seed if seed is not None else 0)
-
-    def clip_factor(x: float) -> float:
-        return max(float(min_factor), min(float(max_factor), x))
-
-    base_profile = NoiseProfile(base.profile)  # type: ignore[attr-defined]
-    global_entry = dict(base_profile.get((None, None), {}))
-
-    # We don't have qubit indices yet — they come from the circuit. Defer the
-    # actual per-(qubit, round) sampling to a wrapping NoiseModel subclass that
-    # materializes overrides at compile time. For simplicity in this rewrite,
-    # we use a concrete deterministic pre-sampling: cap qubits at 256 (more
-    # than any realistic surface-code patch size), pre-sample factors, and
-    # store as overrides in the profile.
-
-    # Pre-sample for a generous range of qubits and rounds. The engine ignores
-    # overrides for components/rounds the circuit doesn't touch.
-    PRESAMPLE_QUBITS = 512
-    PRESAMPLE_ROUNDS = 64
-
-    space_factors: Dict[int, float] = {}
-    pair_factors: Dict[Tuple[Tuple[int, int], int], float] = {}
-    qubit_round_factors: Dict[Tuple[int, int], float] = {}
-
-    if variant == "space_only":
-        for q in range(PRESAMPLE_QUBITS):
-            f = clip_factor(1.0 + rng.gauss(0.0, sigma))
-            space_factors[q] = f
-            entry = _scaled_global_entry(
-                global_entry,
-                factor=f,
-                allowed_keys={"p_1q", "p_meas", "p_reset", "p_idle", "p_idle_meas", "T1", "T2"},
-            )
-            if entry:
-                base_profile[q, None] = entry
-        # Pair factors: we don't know pairs ahead of time. The engine handles
-        # missing pair overrides by falling back to global, so we can pre-sample
-        # for a triangular range of (qi, qj) pairs but it's costly. Skip pair
-        # sampling for space_only and let pairs use global rates. (Acceptable
-        # simplification matching paper figures: noise scatter is dominated by
-        # qubit-local terms.)
-    else:  # space_time
-        for q in range(PRESAMPLE_QUBITS):
-            for r in range(PRESAMPLE_ROUNDS):
-                f = clip_factor(1.0 + rng.gauss(0.0, sigma))
-                qubit_round_factors[(q, r)] = f
-                entry = _scaled_global_entry(
-                    global_entry,
-                    factor=f,
-                    allowed_keys={"p_1q", "p_meas", "p_reset", "p_idle", "p_idle_meas", "T1", "T2"},
-                )
-                if entry:
-                    base_profile[q, r] = entry
-
-    spec = _profile_to_internal_spec(base_profile)
-    snapshot = SampledFactorSnapshot(
-        variant=variant,
-        seed=seed if seed is not None else 0,
+    config = NoiseModelConfig(
+        model_type="nonuniform",
+        p=float(p),
         sigma=sigma,
-        space_factors=space_factors,
-        pair_factors=pair_factors,
-        qubit_round_factors=qubit_round_factors,
+        variant=variant,
+        seed=seed,
+        distribution=distribution,
+        min_factor=min_factor,
+        max_factor=max_factor,
     )
+
+    # For every sigma (including 0) we hand back the unscaled baseline spec and
+    # let ``ConfiguredNoiseModel.compile_circuit`` materialize the per-component
+    # scatter at compile time — once the circuit's actual qubits AND pairs are
+    # known. When sigma == 0 the scatter is inert and the baseline is returned
+    # verbatim. This perturbs EVERY rate (1-qubit gate / measurement / reset /
+    # idle AND the 2-qubit gate error), each by an independent per-component
+    # factor, with the perturbed rate clipped to [0, 0.5].
     return ConfiguredNoiseModel(
-        spec=spec,
-        profile=base_profile,
-        config=NoiseModelConfig(
-            model_type="nonuniform",
-            p=float(p),
-            sigma=sigma,
-            variant=variant,
-            seed=seed,
-            distribution=distribution,
-            min_factor=min_factor,
-            max_factor=max_factor,
-        ),
-        sampled_factors=snapshot,
+        spec=base._spec,  # type: ignore[attr-defined]
+        profile=base.profile,  # type: ignore[attr-defined]
+        config=config,
     )
-
-
-def _scaled_global_entry(
-    global_entry: Mapping[str, Any], *, factor: float, allowed_keys: set
-) -> Dict[str, Any]:
-    """Return a dict whose rate fields are global_entry's rates scaled by `factor`.
-
-    Only the rate fields in ``allowed_keys`` are included. Used by nonuniform to
-    materialize per-component overrides as scaled versions of the global rates.
-    """
-    out: Dict[str, Any] = {}
-    for key in allowed_keys:
-        if key not in global_entry:
-            continue
-        val = global_entry[key]
-        if key in ("T1", "T2"):
-            out[key] = val
-        elif isinstance(val, tuple):
-            rate, dur = val
-            out[key] = (clip_probability(factor * float(rate)), float(dur))
-        elif val is None:
-            continue
-        else:
-            out[key] = clip_probability(factor * float(val))
-    return out
 
 
 __all__ = [

@@ -48,7 +48,7 @@ Z_EDGE_COLOR = "#6787c8"
 
 DATA_FILL = "#ffffff"
 DATA_EDGE = "#111111"
-WORLDLINE_COLOR = "rgba(60,60,60,0.75)"
+WORLDLINE_COLOR = "rgba(80,80,80,0.35)"
 
 DEFAULT_GATE_COLORS: Dict[str, str] = {
     "H": "#f5d300",

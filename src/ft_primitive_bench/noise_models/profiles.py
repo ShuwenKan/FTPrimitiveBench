@@ -259,7 +259,9 @@ def _scale_idle_channel(value: object, *, factor: float, cap: float) -> object:
     return _scale_raw_instruction(value, factor=factor, cap=cap)
 
 
-def _scale_basis_rates(value: Mapping[str, float], *, factor: float, cap: float) -> Dict[str, float]:
+def _scale_basis_rates(
+    value: Mapping[str, float], *, factor: float, cap: float
+) -> Dict[str, float]:
     return {
         str(basis).upper(): _scale_probability(prob, factor=factor, cap=cap)
         for basis, prob in value.items()
@@ -325,12 +327,8 @@ def _sample_nonuniform_adjustments(
             (pair, r): pair_base[pair] for r in unique_rounds for pair in pair_list
         }
     else:  # space_time
-        qubit_round_factors = {
-            (qubit, r): draw() for r in unique_rounds for qubit in qubit_list
-        }
-        pair_round_factors = {
-            (pair, r): draw() for r in unique_rounds for pair in pair_list
-        }
+        qubit_round_factors = {(qubit, r): draw() for r in unique_rounds for qubit in qubit_list}
+        pair_round_factors = {(pair, r): draw() for r in unique_rounds for pair in pair_list}
 
     snapshot = SampledFactorSnapshot(
         variant=config.variant,
@@ -437,11 +435,7 @@ class ConfiguredNoiseModel(NoiseModel):
     @property
     def _nonuniform_scatter_active(self) -> bool:
         cfg = self._config
-        return (
-            cfg is not None
-            and cfg.model_type == "nonuniform"
-            and float(cfg.sigma) > 0.0
-        )
+        return cfg is not None and cfg.model_type == "nonuniform" and float(cfg.sigma) > 0.0
 
     def noisy_circuit(
         self,
@@ -595,9 +589,7 @@ class ConfiguredNoiseModel(NoiseModel):
         if moment_rounds is None:
             inferred = infer_moment_rounds(flat, immune_qubits=immune_qubits)
             if len(inferred) != len(moments):
-                raise ValueError(
-                    "Failed to infer one stabilizer-round index per compiled moment."
-                )
+                raise ValueError("Failed to infer one stabilizer-round index per compiled moment.")
             return inferred
         if len(moment_rounds) != len(moments):
             raise ValueError(
